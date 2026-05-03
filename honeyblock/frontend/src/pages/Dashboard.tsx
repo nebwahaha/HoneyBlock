@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import type { Stats, Attacker } from '../types'
 import { useTheme } from '../theme'
 import StatCard from '../components/StatCard'
@@ -127,29 +128,34 @@ function Dashboard() {
 
   const cardStyle: React.CSSProperties = {
     background: theme.cardBg,
-    border: `2px solid ${theme.cardBorder}`,
+    border: `1px solid ${theme.cardBorder}`,
     borderRadius: 10,
-    padding: 10,
+    padding: 14,
   }
 
   const h3Style: React.CSSProperties = {
     color: theme.heading,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: 700,
-    marginBottom: 8,
+    marginBottom: 10,
   }
 
   const thStyle: React.CSSProperties = {
-    padding: '4px 12px',
+    padding: '8px 12px',
     color: theme.textTertiary,
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.4px',
+    background: theme.tableHeaderBg,
+    borderBottom: `1px solid ${theme.cardBorder}`,
   }
 
   const tdStyle: React.CSSProperties = {
-    padding: '4px 12px',
+    padding: '8px 12px',
     color: theme.textPrimary,
-    fontSize: 13,
+    fontSize: 12,
+    borderBottom: `1px solid ${theme.cardBorder}`,
   }
 
   if (loading) {
@@ -161,28 +167,31 @@ function Dashboard() {
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: 'calc(100vh - 48px)', maxHeight: 1200 }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 12 }}>
       {/* Header row */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-        <span style={{ color: theme.textSecondary, fontSize: 13 }}>Last updated: {lastUpdated}</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ color: theme.textSecondary, fontSize: 12 }}>Last updated: {lastUpdated}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {/* Time range filter */}
           <div ref={filterRef} style={{ position: 'relative' }}>
             <button
               onClick={() => setFilterOpen(!filterOpen)}
               style={{
-                height: 40,
+                height: 36,
                 borderRadius: 8,
                 background: theme.btnBg,
-                border: `2px solid ${theme.btnBorder}`,
+                border: `1px solid ${theme.btnBorder}`,
                 cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
                 padding: '0 12px',
                 color: theme.btnText,
-                fontSize: 13,
+                fontSize: 12,
                 fontWeight: 600,
+                transition: 'all 0.15s',
               }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -201,12 +210,12 @@ function Dashboard() {
                   top: 'calc(100% + 6px)',
                   right: 0,
                   background: theme.cardBg,
-                  border: `2px solid ${theme.cardBorder}`,
+                  border: `1px solid ${theme.cardBorder}`,
                   borderRadius: 10,
                   padding: 4,
                   zIndex: 999,
                   minWidth: 140,
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.25)',
+                  boxShadow: `0 8px 24px ${theme.shadow}`,
                 }}
               >
                 {(['all', 'today', 'week', 'month', 'year'] as const).map((opt) => (
@@ -235,20 +244,22 @@ function Dashboard() {
           </div>
           <button
             onClick={fetchData}
+            title="Refresh"
             style={{
-              width: 40,
-              height: 40,
+              width: 36,
+              height: 36,
               borderRadius: 8,
               background: theme.btnBg,
-              border: `2px solid ${theme.btnBorder}`,
+              border: `1px solid ${theme.btnBorder}`,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               color: theme.btnText,
+              transition: 'all 0.15s',
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <polyline points="23 4 23 10 17 10" />
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
             </svg>
@@ -256,21 +267,23 @@ function Dashboard() {
           {/* Live logs button */}
           <button
             onClick={handleLogsToggle}
+            title="Live logs"
             style={{
-              width: 40,
-              height: 40,
+              width: 36,
+              height: 36,
               borderRadius: 8,
-              background: theme.btnBg,
-              border: `2px solid ${theme.btnBorder}`,
+              background: liveFeedOpen ? theme.navActiveBg : theme.btnBg,
+              border: `1px solid ${liveFeedOpen ? theme.brand + '55' : theme.btnBorder}`,
               cursor: 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: theme.btnText,
+              color: liveFeedOpen ? theme.brand : theme.btnText,
               position: 'relative',
+              transition: 'all 0.15s',
             }}
           >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <rect x="2" y="3" width="20" height="18" rx="2" />
               <line x1="6" y1="8" x2="18" y2="8" />
               <line x1="6" y1="12" x2="18" y2="12" />
@@ -280,12 +293,19 @@ function Dashboard() {
               <span
                 style={{
                   position: 'absolute',
-                  top: 4,
-                  right: 4,
-                  width: 9,
-                  height: 9,
-                  borderRadius: '50%',
-                  background: '#e74c3c',
+                  top: -3,
+                  right: -3,
+                  minWidth: 14,
+                  height: 14,
+                  padding: '0 4px',
+                  borderRadius: 999,
+                  background: theme.badgeRed,
+                  color: '#fff',
+                  fontSize: 9,
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
                 }}
               />
             )}
@@ -295,20 +315,24 @@ function Dashboard() {
       </div>
 
       {/* Stat cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 12 }}>
         <StatCard
           icon={
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
           }
           label="Total Attacks"
           value={stats?.total_attempts ?? 0}
+          color={theme.error}
+          delay={0}
         />
         <StatCardPopup
           icon={
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" /></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></svg>
           }
           label="Unique IPs"
           value={stats?.unique_ips ?? 0}
+          color={theme.blueLink}
+          delay={1}
           fetchRows={async (page) => {
             const rangeQ = timeRange !== 'all' ? `&range=${timeRange}` : ''
             const res = await fetch(`/api/unique-ips?page=${page}&limit=50${rangeQ}`)
@@ -324,10 +348,12 @@ function Dashboard() {
         />
         <StatCardPopup
           icon={
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" /></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
           }
           label="Blocked IPs"
           value={stats?.blocked_ips ?? 0}
+          color={theme.amber}
+          delay={2}
           fetchRows={async () => {
             const res = await fetch('/api/blocked')
             const json = await res.json()
@@ -344,10 +370,12 @@ function Dashboard() {
         />
         <StatCardPopup
           icon={
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12" /></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" /></svg>
           }
           label="Active Sessions"
           value={activeSessions}
+          color={theme.success}
+          delay={3}
           fetchRows={async () => {
             const res = await fetch('/api/active-sessions')
             const json = await res.json()
@@ -363,7 +391,7 @@ function Dashboard() {
       </div>
 
       {/* Charts row — toggleable */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 12, flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 0, flex: 1, minHeight: 0 }}>
         <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <h3 style={{ ...h3Style, marginBottom: 0 }}>
@@ -424,7 +452,7 @@ function Dashboard() {
       </div>
 
       {/* Top usernames, passwords & country pie chart */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, flex: 1, minHeight: 0 }}>
         <div style={{ ...cardStyle, overflow: 'auto' }}>
           <h3 style={h3Style}>Cowrie Top 10 Usernames</h3>
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -477,48 +505,97 @@ function Dashboard() {
         </div>
       </div>
 
-      {/* Sliding live feed drawer */}
-      <div
-        ref={drawerRef}
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 200,
-          right: 0,
-          zIndex: 1000,
-          transform: liveFeedOpen ? 'translateY(0)' : 'translateY(100%)',
-          transition: isDragging.current ? 'none' : 'transform 0.3s ease',
-          height: `${drawerHeight}vh`,
-          display: 'flex',
-          flexDirection: 'column',
-          background: theme.cardBg,
-          borderTop: `3px solid ${theme.cardBorder}`,
-          borderLeft: `3px solid ${theme.cardBorder}`,
-          borderTopLeftRadius: 14,
-          borderTopRightRadius: 14,
-        }}
-      >
-        {/* Drag handle */}
+      {/* Sliding live feed drawer — portaled to <body> so position:fixed
+          isn't trapped by the page-transition transform */}
+      {createPortal(
         <div
-          onMouseDown={handleDragStart}
+          ref={drawerRef}
+          aria-hidden={!liveFeedOpen}
           style={{
-            cursor: 'ns-resize',
+            position: 'fixed',
+            bottom: 0,
+            left: 200,
+            right: 0,
+            zIndex: 1000,
+            pointerEvents: liveFeedOpen ? 'auto' : 'none',
+            visibility: liveFeedOpen ? 'visible' : 'hidden',
+            transform: liveFeedOpen ? 'translateY(0)' : 'translateY(100%)',
+            // On open: flip visibility instantly so the slide-in is visible.
+            // On close: keep it visible until the slide-out finishes.
+            transition: isDragging.current
+              ? 'none'
+              : liveFeedOpen
+                ? 'transform 0.28s cubic-bezier(0.4,0,0.2,1), visibility 0s linear 0s'
+                : 'transform 0.28s cubic-bezier(0.4,0,0.2,1), visibility 0s linear 0.28s',
+            height: `${drawerHeight}vh`,
             display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '6px 0',
-            flexShrink: 0,
+            flexDirection: 'column',
+            background: theme.cardBg,
+            borderTop: `2px solid ${theme.cardBorder}`,
+            borderLeft: `1px solid ${theme.cardBorder}`,
+            borderTopLeftRadius: 14,
+            borderTopRightRadius: 14,
+            boxShadow: `0 -8px 32px ${theme.shadow}`,
           }}
         >
-          <div style={{ width: 40, height: 4, borderRadius: 2, background: theme.textTertiary, opacity: 0.5 }} />
-        </div>
-        <div style={{ padding: '0 20px 0 20px' }}>
-          <h3 style={{ ...h3Style, marginBottom: 8 }}>Live Feed for Logs</h3>
-        </div>
-        <div style={{ flex: 1, overflow: 'auto', padding: '0 20px 12px 20px' }}>
-          <LiveFeed />
-        </div>
-      </div>
+          {/* Drag handle */}
+          <div
+            onMouseDown={handleDragStart}
+            style={{
+              cursor: 'ns-resize',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              padding: '6px 0',
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ width: 36, height: 3, borderRadius: 2, background: theme.textTertiary, opacity: 0.4 }} />
+          </div>
+          <div
+            style={{
+              padding: '0 18px 8px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              flexShrink: 0,
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div
+                style={{
+                  width: 7,
+                  height: 7,
+                  borderRadius: '50%',
+                  background: theme.success,
+                  color: theme.success,
+                  animation: 'pulse-dot 2s infinite',
+                }}
+              />
+              <span style={{ fontSize: 13, fontWeight: 600, color: theme.heading }}>Live Feed</span>
+            </div>
+            <button
+              onClick={() => setLiveFeedOpen(false)}
+              style={{
+                background: 'none',
+                border: 'none',
+                color: theme.textSecondary,
+                cursor: 'pointer',
+                fontSize: 16,
+                lineHeight: 1,
+                padding: 4,
+              }}
+              aria-label="Close live feed"
+            >
+              ✕
+            </button>
+          </div>
+          <div style={{ flex: 1, overflow: 'auto', padding: '0 18px 14px' }}>
+            <LiveFeed />
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   )
 }

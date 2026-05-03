@@ -201,22 +201,25 @@ function NotificationBell() {
       <button
         onClick={handleOpen}
         style={{
-          position: 'relative', width: 40, height: 40, borderRadius: 8,
+          position: 'relative', width: 36, height: 36, borderRadius: 8,
           background: open ? theme.navActiveBg : theme.btnBg,
-          border: `2px solid ${theme.btnBorder}`, cursor: 'pointer',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', color: theme.btnText,
+          border: `1px solid ${open ? theme.brand + '55' : theme.btnBorder}`,
+          cursor: 'pointer',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          color: open ? theme.brand : theme.btnText,
+          transition: 'all 0.15s',
         }}
       >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
           <path d="M13.73 21a2 2 0 0 1-3.46 0" />
         </svg>
         {totalBadge > 0 && (
           <span style={{
-            position: 'absolute', top: -4, right: -4,
+            position: 'absolute', top: -3, right: -3,
             background: theme.badgeRed, color: '#fff',
-            borderRadius: '50%', width: 18, height: 18,
-            fontSize: 10, fontWeight: 700,
+            borderRadius: 999, minWidth: 16, height: 16, padding: '0 4px',
+            fontSize: 9, fontWeight: 700,
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             {totalBadge > 99 ? '99+' : totalBadge}

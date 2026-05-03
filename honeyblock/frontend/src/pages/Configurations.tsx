@@ -96,204 +96,236 @@ function Configurations() {
     }
   }
 
-  const cardStyle: React.CSSProperties = {
-    background: theme.cardBg,
-    border: `2px solid ${theme.cardBorder}`,
-    borderRadius: 10,
-    padding: 24,
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+  const sectionLabel: React.CSSProperties = {
+    fontSize: 11,
+    fontWeight: 700,
+    color: theme.textTertiary,
+    letterSpacing: '1.5px',
+    textTransform: 'uppercase',
+    marginBottom: 8,
   }
 
-  const themeLabels: Record<string, string> = {
-    dark: 'Dark',
-    'soft-light': 'Light',
-    forest: 'Forest',
-    ocean: 'Ocean',
-    sky: 'Sky',
+  const rowCard: React.CSSProperties = {
+    background: theme.cardBg,
+    border: `1px solid ${theme.cardBorder}`,
+    borderRadius: 10,
+    padding: '12px 16px',
+    marginBottom: 8,
+    display: 'flex',
+    alignItems: 'center',
+    gap: 14,
+  }
+
+  const iconBox = (active: boolean): React.CSSProperties => ({
+    width: 34,
+    height: 34,
+    borderRadius: 8,
+    flexShrink: 0,
+    background: active ? `${theme.brand}18` : theme.btnBg,
+    border: `1px solid ${active ? theme.brand + '33' : theme.cardBorder}`,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: active ? theme.brand : theme.textTertiary,
+    transition: 'all 0.2s',
+  })
+
+  /* Animated toggle switch */
+  const Toggle = ({ on, onClick, disabled }: { on: boolean | null; onClick: () => void; disabled?: boolean }) => {
+    const isOn = !!on
+    return (
+      <div
+        onClick={() => { if (!disabled) onClick() }}
+        style={{
+          width: 38,
+          height: 20,
+          borderRadius: 10,
+          background: isOn ? `${theme.brand}28` : `${theme.cardBorder}55`,
+          border: `1px solid ${isOn ? theme.brand + '55' : theme.cardBorder}`,
+          position: 'relative',
+          cursor: disabled ? 'wait' : 'pointer',
+          transition: 'all 0.22s',
+          flexShrink: 0,
+          opacity: disabled ? 0.5 : 1,
+        }}
+      >
+        <div
+          style={{
+            position: 'absolute',
+            top: 2,
+            left: isOn ? 18 : 2,
+            width: 14,
+            height: 14,
+            borderRadius: '50%',
+            background: isOn ? theme.brand : theme.textTertiary,
+            transition: 'left 0.22s cubic-bezier(0.34,1.56,0.64,1), background 0.22s',
+            boxShadow: isOn ? `0 0 8px ${theme.brand}88` : undefined,
+          }}
+        />
+      </div>
+    )
   }
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 24 }}>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 16 }}>
         <NotificationBell />
       </div>
 
       {message && (
         <div
           style={{
-            padding: '10px 16px',
-            marginBottom: 16,
-            borderRadius: 6,
+            padding: '9px 14px',
+            marginBottom: 12,
+            borderRadius: 8,
+            fontSize: 12,
+            fontFamily: "'JetBrains Mono', 'Consolas', monospace",
             background: message.error ? theme.messageBgError : theme.messageBgSuccess,
             color: message.error ? theme.error : theme.success,
-            fontSize: 13,
+            border: `1px solid ${message.error ? theme.error + '30' : theme.success + '30'}`,
           }}
         >
           {message.text}
         </div>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-        {/* Cowrie toggle */}
-        <div style={cardStyle}>
-          <div>
-            <h3 style={{ color: theme.heading, fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
-              Cowrie Honeypot
-            </h3>
-            <p style={{ color: theme.textSecondary, fontSize: 13, margin: 0 }}>
-              Start or stop the Cowrie SSH/Telnet honeypot service.
-            </p>
-            <div style={{ marginTop: 8, fontSize: 13 }}>
-              Status:{' '}
-              <span style={{ color: cowrieRunning ? theme.success : theme.error, fontWeight: 600 }}>
-                {cowrieRunning === null ? 'Checking...' : cowrieRunning ? 'Running' : 'Stopped'}
-              </span>
-            </div>
-          </div>
-          <button
-            onClick={toggleCowrie}
-            disabled={toggling || cowrieRunning === null}
-            style={{
-              padding: '10px 28px',
-              border: 'none',
-              borderRadius: 8,
-              fontWeight: 600,
-              fontSize: 14,
-              cursor: toggling ? 'wait' : 'pointer',
-              color: '#ffffff',
-              background: toggling ? theme.toggleDisabledBg : cowrieRunning ? theme.blockBtn : theme.unblockBtn,
-              minWidth: 130,
-            }}
-          >
-            {toggling ? 'Please wait...' : cowrieRunning ? 'Stop Cowrie' : 'Start Cowrie'}
-          </button>
-        </div>
+      {/* ─── Service Controls ─── */}
+      <div style={sectionLabel}>Service Controls</div>
 
-        {/* Auto-start toggle */}
-        <div style={cardStyle}>
-          <div>
-            <h3 style={{ color: theme.heading, fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
-              Auto-Start on Boot
-            </h3>
-            <p style={{ color: theme.textSecondary, fontSize: 13, margin: 0 }}>
-              Automatically start all HoneyBlock services when the system boots up.
-            </p>
-            <div style={{ marginTop: 8, fontSize: 13 }}>
-              Status:{' '}
-              <span style={{ color: autoStart ? theme.success : theme.textSecondary, fontWeight: 600 }}>
-                {autoStart === null ? 'Checking...' : autoStart ? 'Enabled' : 'Disabled'}
-              </span>
-            </div>
-          </div>
-          <button
-            onClick={toggleAutoStart}
-            disabled={togglingAuto || autoStart === null}
-            style={{
-              padding: '10px 28px',
-              border: `2px solid ${autoStart ? theme.toggleActiveBorder : theme.toggleInactiveBorder}`,
-              borderRadius: 8,
-              fontWeight: 600,
-              fontSize: 14,
-              cursor: togglingAuto ? 'wait' : 'pointer',
-              color: autoStart ? theme.toggleActiveText : theme.toggleInactiveText,
-              background: 'transparent',
-              minWidth: 130,
-            }}
-          >
-            {togglingAuto ? 'Please wait...' : autoStart ? 'Disable' : 'Enable'}
-          </button>
+      <div style={rowCard}>
+        <div style={iconBox(!!cowrieRunning)}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="4 17 10 11 4 5" />
+            <line x1="12" y1="19" x2="20" y2="19" />
+          </svg>
         </div>
-
-        {/* Auto-block toggle */}
-        <div style={cardStyle}>
-          <div>
-            <h3 style={{ color: theme.heading, fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
-              Automatic Blocking
-            </h3>
-            <p style={{ color: theme.textSecondary, fontSize: 13, margin: 0 }}>
-              Automatically block attackers when their session count exceeds the configured threshold.
-              Set the session limit on the Blocking page.
-            </p>
-            <div style={{ marginTop: 8, fontSize: 13 }}>
-              Status:{' '}
-              <span style={{ color: autoBlock ? theme.success : theme.textSecondary, fontWeight: 600 }}>
-                {autoBlock === null ? 'Checking...' : autoBlock ? 'Enabled' : 'Disabled'}
-              </span>
-            </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: theme.heading }}>Cowrie Honeypot</div>
+          <div style={{ fontSize: 11, color: theme.textSecondary, marginTop: 1 }}>
+            SSH/Telnet honeypot service ·{' '}
+            <span style={{ color: cowrieRunning ? theme.success : theme.error, fontWeight: 600 }}>
+              {cowrieRunning === null ? 'Checking…' : cowrieRunning ? 'Running' : 'Stopped'}
+            </span>
           </div>
-          <button
-            onClick={toggleAutoBlock}
-            disabled={togglingAutoBlock || autoBlock === null}
-            style={{
-              padding: '10px 28px',
-              border: `2px solid ${autoBlock ? theme.toggleActiveBorder : theme.toggleInactiveBorder}`,
-              borderRadius: 8,
-              fontWeight: 600,
-              fontSize: 14,
-              cursor: togglingAutoBlock ? 'wait' : 'pointer',
-              color: autoBlock ? theme.toggleActiveText : theme.toggleInactiveText,
-              background: 'transparent',
-              minWidth: 130,
-            }}
-          >
-            {togglingAutoBlock ? 'Please wait...' : autoBlock ? 'Disable' : 'Enable'}
-          </button>
         </div>
-
-        {/* Theme selector */}
-        <div
+        <button
+          onClick={toggleCowrie}
+          disabled={toggling || cowrieRunning === null}
           style={{
-            background: theme.cardBg,
-            border: `2px solid ${theme.cardBorder}`,
-            borderRadius: 10,
-            padding: 24,
+            padding: '7px 16px',
+            border: `1px solid ${cowrieRunning ? theme.blockBtnBorder : theme.unblockBtnBorder}`,
+            borderRadius: 7,
+            background: cowrieRunning ? theme.blockBtn : theme.unblockBtn,
+            color: cowrieRunning ? theme.blockBtnText : theme.unblockBtnText,
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: toggling ? 'wait' : 'pointer',
+            fontFamily: 'inherit',
+            transition: 'all 0.15s',
+            minWidth: 80,
           }}
         >
-          <h3 style={{ color: theme.heading, fontSize: 16, fontWeight: 600, marginBottom: 4 }}>
-            Theme
-          </h3>
-          <p style={{ color: theme.textSecondary, fontSize: 13, margin: 0, marginBottom: 16 }}>
-            Choose a visual theme for the dashboard.
-          </p>
-          <div style={{ display: 'flex', gap: 12 }}>
-            {Object.keys(themes).map((key) => {
-              const t = themes[key]
-              const isActive = key === themeName
-              return (
-                <button
-                  key={key}
-                  onClick={() => setThemeName(key)}
+          {toggling ? '…' : cowrieRunning ? 'Stop' : 'Start'}
+        </button>
+      </div>
+
+      {/* ─── Automation ─── */}
+      <div style={{ ...sectionLabel, marginTop: 14 }}>Automation</div>
+
+      <div style={rowCard}>
+        <div style={iconBox(!!autoStart)}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="23 4 23 10 17 10" />
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+          </svg>
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: theme.heading }}>Auto-Start on Boot</div>
+          <div style={{ fontSize: 11, color: theme.textSecondary, marginTop: 1 }}>
+            Start services when system boots ·{' '}
+            <span style={{ color: autoStart ? theme.success : theme.textTertiary, fontWeight: 600 }}>
+              {autoStart === null ? 'Checking…' : autoStart ? 'Enabled' : 'Disabled'}
+            </span>
+          </div>
+        </div>
+        <Toggle on={autoStart} onClick={toggleAutoStart} disabled={togglingAuto || autoStart === null} />
+      </div>
+
+      <div style={rowCard}>
+        <div style={iconBox(!!autoBlock)}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+          </svg>
+        </div>
+        <div style={{ flex: 1 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: theme.heading }}>Automatic Blocking</div>
+          <div style={{ fontSize: 11, color: theme.textSecondary, marginTop: 1 }}>
+            Block IPs past session threshold ·{' '}
+            <span style={{ color: autoBlock ? theme.success : theme.textTertiary, fontWeight: 600 }}>
+              {autoBlock === null ? 'Checking…' : autoBlock ? 'Enabled' : 'Disabled'}
+            </span>
+          </div>
+        </div>
+        <Toggle on={autoBlock} onClick={toggleAutoBlock} disabled={togglingAutoBlock || autoBlock === null} />
+      </div>
+
+      {/* ─── Theme ─── */}
+      <div style={{ ...sectionLabel, marginTop: 14 }}>Theme</div>
+      <div
+        style={{
+          background: theme.cardBg,
+          border: `1px solid ${theme.cardBorder}`,
+          borderRadius: 10,
+          padding: '12px 16px',
+        }}
+      >
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+          {Object.values(themes).map((t) => {
+            const isActive = t.name === themeName
+            return (
+              <button
+                key={t.name}
+                onClick={() => setThemeName(t.name)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '8px 14px',
+                  borderRadius: 8,
+                  border: `1px solid ${isActive ? t.brand + '66' : theme.cardBorder}`,
+                  background: isActive ? `${t.brand}12` : 'transparent',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                  fontFamily: 'inherit',
+                }}
+              >
+                <div style={{ display: 'flex', gap: 3 }}>
+                  {[t.pageBg, t.cardBg, t.brand].map((c, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        width: 10,
+                        height: 10,
+                        borderRadius: '50%',
+                        background: c,
+                        border: `1px solid ${theme.cardBorder}`,
+                      }}
+                    />
+                  ))}
+                </div>
+                <span
                   style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    padding: '12px 20px',
-                    borderRadius: 8,
-                    border: `2px solid ${isActive ? theme.brand : theme.cardBorder}`,
-                    background: isActive ? theme.navActiveBg : 'transparent',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s',
+                    fontSize: 12,
+                    fontWeight: isActive ? 600 : 400,
+                    color: isActive ? theme.heading : theme.textSecondary,
                   }}
                 >
-                  {/* Color preview dots */}
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    <div style={{ width: 14, height: 14, borderRadius: '50%', background: t.pageBg, border: `1px solid ${theme.cardBorder}` }} />
-                    <div style={{ width: 14, height: 14, borderRadius: '50%', background: t.cardBg, border: `1px solid ${theme.cardBorder}` }} />
-                    <div style={{ width: 14, height: 14, borderRadius: '50%', background: t.brand }} />
-                  </div>
-                  <span style={{
-                    color: isActive ? theme.heading : theme.textSecondary,
-                    fontSize: 13,
-                    fontWeight: isActive ? 600 : 400,
-                  }}>
-                    {themeLabels[key] ?? key}
-                  </span>
-                </button>
-              )
-            })}
-          </div>
+                  {t.label}
+                </span>
+              </button>
+            )
+          })}
         </div>
       </div>
     </div>

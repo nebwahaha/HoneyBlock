@@ -147,24 +147,29 @@ function Blocking() {
 
   const thStyle: React.CSSProperties = {
     background: theme.tableHeaderBg,
-    color: theme.textSecondary,
+    color: theme.textTertiary,
     textAlign: 'left',
-    padding: 12,
-    fontSize: 13,
+    padding: '8px 12px',
+    fontSize: 11,
     fontWeight: 600,
+    textTransform: 'uppercase',
+    letterSpacing: '0.4px',
+    borderBottom: `1px solid ${theme.cardBorder}`,
+    whiteSpace: 'nowrap',
   }
 
   const tdStyle: React.CSSProperties = {
-    padding: 12,
-    fontSize: 13,
+    padding: '9px 12px',
+    fontSize: 12,
     color: theme.textPrimary,
+    borderBottom: `1px solid ${theme.cardBorder}`,
   }
 
   const cardStyle: React.CSSProperties = {
     background: theme.cardBg,
-    border: `2px solid ${theme.cardBorder}`,
+    border: `1px solid ${theme.cardBorder}`,
     borderRadius: 10,
-    padding: 20,
+    padding: 16,
   }
 
   return (
@@ -194,7 +199,7 @@ function Blocking() {
         }}
       >
         <div>
-          <h3 style={{ color: theme.heading, fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
+          <h3 style={{ color: theme.heading, fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
             Automatic Blocking — Session Limit
           </h3>
           <p style={{ color: theme.textSecondary, fontSize: 13, margin: 0 }}>
@@ -271,7 +276,7 @@ function Blocking() {
         }}
       >
         <div>
-          <h3 style={{ color: theme.heading, fontSize: 15, fontWeight: 700, marginBottom: 4 }}>
+          <h3 style={{ color: theme.heading, fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
             Block Expiration
           </h3>
           <p style={{ color: theme.textSecondary, fontSize: 13, margin: 0 }}>
@@ -303,7 +308,7 @@ function Blocking() {
 
       {/* Attacker list with block/unblock buttons */}
       <div style={{ ...cardStyle, marginBottom: 24 }}>
-        <h3 style={{ color: theme.heading, fontSize: 15, fontWeight: 700, marginBottom: 16 }}>
+        <h3 style={{ color: theme.heading, fontSize: 13, fontWeight: 700, marginBottom: 14 }}>
           Detected Attackers
         </h3>
 
@@ -336,7 +341,7 @@ function Blocking() {
                         borderBottom: `1px solid ${theme.cardBorder}`,
                       }}
                     >
-                      <td style={tdStyle}>{a.ip}</td>
+                      <td style={{ ...tdStyle, fontFamily: "'JetBrains Mono', 'Consolas', monospace", fontSize: 11 }}>{a.ip}</td>
                       <td style={tdStyle}>{a.country ?? '--'}</td>
                       <td style={tdStyle}>{a.initial_detection}</td>
                       <td style={tdStyle}>{a.last_detected}</td>
@@ -357,14 +362,16 @@ function Blocking() {
                           onClick={() => isBlocked ? unblockIp(a.ip) : blockIp(a.ip)}
                           disabled={actionInProgress === a.ip}
                           style={{
-                            padding: '6px 14px',
-                            borderRadius: 5,
-                            border: 'none',
+                            padding: '5px 12px',
+                            borderRadius: 6,
+                            border: `1px solid ${isBlocked ? theme.unblockBtnBorder : theme.blockBtnBorder}`,
                             fontWeight: 600,
-                            fontSize: 12,
+                            fontSize: 11,
                             cursor: actionInProgress === a.ip ? 'wait' : 'pointer',
-                            color: '#ffffff',
+                            color: isBlocked ? theme.unblockBtnText : theme.blockBtnText,
                             background: isBlocked ? theme.unblockBtn : theme.blockBtn,
+                            transition: 'all 0.15s',
+                            fontFamily: 'inherit',
                           }}
                         >
                           {actionInProgress === a.ip ? '...' : isBlocked ? 'Unblock' : 'Block'}
@@ -381,7 +388,7 @@ function Blocking() {
 
       {/* Blocklist history */}
       <div style={cardStyle}>
-        <h3 style={{ color: theme.heading, fontSize: 15, fontWeight: 700, marginBottom: 16 }}>
+        <h3 style={{ color: theme.heading, fontSize: 13, fontWeight: 700, marginBottom: 14 }}>
           Block History
         </h3>
 
@@ -412,7 +419,7 @@ function Blocking() {
                     }}
                   >
                     <td style={tdStyle}>{b.block_id}</td>
-                    <td style={tdStyle}>{b.ip}</td>
+                    <td style={{ ...tdStyle, fontFamily: "'JetBrains Mono', 'Consolas', monospace", fontSize: 11 }}>{b.ip}</td>
                     <td style={tdStyle}>{b.block_date}</td>
                     <td style={tdStyle}>{b.blocked_by ?? '--'}</td>
                     <td style={tdStyle}>{b.expiration_date ?? 'Never'}</td>

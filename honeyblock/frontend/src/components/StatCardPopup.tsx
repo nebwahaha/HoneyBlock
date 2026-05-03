@@ -10,10 +10,14 @@ interface Props {
   icon: React.ReactNode
   label: string
   value: string | number
+  /** accent colour used for icon tint, hover glow, etc. Defaults to brand */
+  color?: string
+  /** stagger index for the pop-in animation */
+  delay?: number
   fetchRows: (page: number) => Promise<{ rows: PopupRow[]; hasMore: boolean }>
 }
 
-function StatCardPopup({ icon, label, value, fetchRows }: Props) {
+function StatCardPopup({ icon, label, value, color, delay = 0, fetchRows }: Props) {
   const { theme } = useTheme()
   const [hovered, setHovered] = useState(false)
   const [open, setOpen] = useState(false)
@@ -21,6 +25,7 @@ function StatCardPopup({ icon, label, value, fetchRows }: Props) {
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
   const [loading, setLoading] = useState(false)
+  const accent = color ?? theme.brand
 
   const load = useCallback(async (p: number) => {
     setLoading(true)
@@ -62,27 +67,43 @@ function StatCardPopup({ icon, label, value, fetchRows }: Props) {
         onMouseLeave={() => setHovered(false)}
         style={{
           background: hovered ? theme.cardHoverBg : theme.cardBg,
-          border: `2px solid ${hovered ? theme.cardHoverBorder : theme.cardBorder}`,
+          border: `1px solid ${hovered ? theme.cardHoverBorder : theme.cardBorder}`,
           borderRadius: 10,
-          padding: '20px 24px',
+          padding: '16px 20px',
           flex: 1,
           display: 'flex',
           alignItems: 'center',
           gap: 14,
           cursor: 'pointer',
-          transition: 'background 0.15s, border-color 0.15s',
+          transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
+          boxShadow: hovered ? `0 4px 20px ${accent}22` : 'none',
+          transition: 'background 0.18s, border-color 0.18s, transform 0.18s, box-shadow 0.18s',
+          animation: `stat-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) ${delay * 0.07}s both`,
         }}
       >
-        <div style={{
-          width: 44, height: 44, borderRadius: 8, background: theme.iconAccentBg,
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: theme.iconAccent, flexShrink: 0,
-        }}>
+        <div
+          style={{
+            width: 40,
+            height: 40,
+            borderRadius: 9,
+            background: `${accent}18`,
+            border: `1px solid ${accent}28`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: accent,
+            flexShrink: 0,
+          }}
+        >
           {icon}
         </div>
         <div>
-          <div style={{ color: theme.heading, fontSize: 28, fontWeight: 700, lineHeight: 1.1 }}>{value}</div>
-          <div style={{ color: theme.textSecondary, fontSize: 13, marginTop: 2 }}>{label}</div>
+          <div style={{ color: theme.heading, fontSize: 26, fontWeight: 700, lineHeight: 1.1, letterSpacing: '-0.5px' }}>
+            {typeof value === 'number' ? value.toLocaleString() : value}
+          </div>
+          <div style={{ color: theme.textSecondary, fontSize: 11, marginTop: 3, textTransform: 'uppercase', letterSpacing: '0.6px' }}>
+            {label}
+          </div>
         </div>
       </div>
 
@@ -104,7 +125,7 @@ function StatCardPopup({ icon, label, value, fetchRows }: Props) {
             onClick={e => e.stopPropagation()}
             style={{
               background: theme.cardBg,
-              border: `2px solid ${theme.tooltipBorder}`,
+              border: `1px solid ${theme.tooltipBorder}`,
               borderRadius: 12,
               width: 420,
               maxHeight: '70vh',
@@ -123,7 +144,7 @@ function StatCardPopup({ icon, label, value, fetchRows }: Props) {
                 onClick={handleClose}
                 style={{
                   background: 'none', border: 'none', color: theme.textSecondary,
-                  fontSize: 20, cursor: 'pointer', lineHeight: 1, padding: '0 4px',
+                  fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: '0 4px',
                 }}
               >
                 ✕
@@ -144,7 +165,7 @@ function StatCardPopup({ icon, label, value, fetchRows }: Props) {
                 }}>
                   <span style={{ color: theme.textPrimary, fontSize: 13, fontFamily: "'JetBrains Mono', monospace" }}>{r.primary}</span>
                   {r.secondary && (
-                    <span style={{ color: theme.iconAccent, fontSize: 12, fontWeight: 600 }}>{r.secondary}</span>
+                    <span style={{ color: accent, fontSize: 12, fontWeight: 600 }}>{r.secondary}</span>
                   )}
                 </div>
               ))}
