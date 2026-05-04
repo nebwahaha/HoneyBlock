@@ -5,6 +5,7 @@ import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
 import Blocking from './pages/Blocking'
 import Configurations from './pages/Configurations'
+import NotificationBell from './components/NotificationBell'
 
 const PAGE_LABELS: Record<string, string> = {
   '/': 'Dashboard',
@@ -425,6 +426,7 @@ function App() {
                 </span>
               </div>
             ))}
+            <NotificationBell />
           </div>
         </div>
 

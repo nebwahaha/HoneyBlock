@@ -4,13 +4,13 @@ import type { Stats, Attacker } from '../types'
 import { useTheme } from '../theme'
 import StatCard from '../components/StatCard'
 import TopAttackersChart from '../components/TopAttackersChart'
+import AttackerActivityModal from '../components/AttackerActivityModal'
 import AttackMap from '../components/AttackMap'
 import LiveFeed from '../components/LiveFeed'
 import CountryPieChart from '../components/CountryPieChart'
 import StatCardPopup from '../components/StatCardPopup'
 import ProtocolChart from '../components/ProtocolChart'
 import EventsHistogram from '../components/EventsHistogram'
-import NotificationBell from '../components/NotificationBell'
 const REFRESH_SKELETON_MS = 1500
 
 function DashboardSkeleton() {
@@ -140,6 +140,7 @@ function Dashboard() {
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<string>('')
+  const [selectedAttackerIp, setSelectedAttackerIp] = useState<string | null>(null)
   const [liveFeedOpen, setLiveFeedOpen] = useState(false)
   const [showProtocol, setShowProtocol] = useState(false)
   const [showHistogram, setShowHistogram] = useState(false)
@@ -448,7 +449,6 @@ function Dashboard() {
               />
             )}
           </button>
-          <NotificationBell />
         </div>
       </div>
 
@@ -554,7 +554,7 @@ function Dashboard() {
           <div style={{ flex: 1, minHeight: 0 }}>
             {showProtocol
               ? <ProtocolChart data={stats?.protocol_counts ?? []} />
-              : <TopAttackersChart data={stats?.top_ips?.slice(0, 5) ?? []} />
+              : <TopAttackersChart data={stats?.top_ips?.slice(0, 5) ?? []} onBarClick={setSelectedAttackerIp} />
             }
           </div>
         </div>
@@ -734,6 +734,12 @@ function Dashboard() {
         </div>,
         document.body,
       )}
+
+      {/* Per-attacker activity popup, opened from the Top 5 Attackers bar chart */}
+      <AttackerActivityModal
+        ip={selectedAttackerIp}
+        onClose={() => setSelectedAttackerIp(null)}
+      />
     </div>
   )
 }

@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import type { Attacker, BlockEntry } from '../types'
 import { useTheme } from '../theme'
-import NotificationBell from '../components/NotificationBell'
 
 function Blocking() {
   const { theme } = useTheme()
@@ -174,11 +173,6 @@ function Blocking() {
 
   return (
     <div>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 24 }}>
-        <NotificationBell />
-      </div>
-
       {message && message.error && (
         <div style={{
           padding: '10px 16px', marginBottom: 16, borderRadius: 6,

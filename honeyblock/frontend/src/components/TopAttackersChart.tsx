@@ -3,9 +3,11 @@ import { useTheme } from '../theme'
 
 interface Props {
   data: { ip: string; count: number }[]
+  /** Fires when the user clicks a bar — receives the IP for that bar. */
+  onBarClick?: (ip: string) => void
 }
 
-function TopAttackersChart({ data }: Props) {
+function TopAttackersChart({ data, onBarClick }: Props) {
   const { theme } = useTheme()
 
   if (data.length === 0) {
@@ -48,8 +50,22 @@ function TopAttackersChart({ data }: Props) {
             boxShadow: `0 4px 12px ${theme.shadow}`,
           }}
           labelStyle={{ color: theme.heading, fontWeight: 600, fontSize: 12 }}
+          formatter={(value) => [value as number, 'Sessions']}
         />
-        <Bar dataKey="count" fill={theme.iconAccent} radius={[6, 6, 0, 0]} name="Sessions" maxBarSize={40} />
+        <Bar
+          dataKey="count"
+          fill={theme.iconAccent}
+          radius={[6, 6, 0, 0]}
+          name="Sessions"
+          maxBarSize={40}
+          cursor={onBarClick ? 'pointer' : 'default'}
+          onClick={(data: unknown) => {
+            // recharts passes the row payload as the first arg; pluck the IP off it
+            const ip = (data as { payload?: { ip?: string }; ip?: string } | undefined)?.payload?.ip
+              ?? (data as { ip?: string } | undefined)?.ip
+            if (onBarClick && ip) onBarClick(ip)
+          }}
+        />
       </BarChart>
     </ResponsiveContainer>
   )

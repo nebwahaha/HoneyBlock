@@ -56,6 +56,20 @@ def attempts():
     return jsonify({"page": page, "limit": limit, "data": rows})
 
 
+@app.route("/api/attacker/<path:ip>/activity")
+def attacker_activity(ip: str):
+    """Per-IP activity feed: every event recorded for this attacker."""
+    limit = request.args.get("limit", 200, type=int)
+    limit = max(1, min(limit, 500))
+    rows = db.get_sessions_for_ip(ip, limit=limit)
+    attacker = db.get_attacker(ip)
+    return jsonify({
+        "ip": ip,
+        "country": attacker["country"] if attacker else None,
+        "data": rows,
+    })
+
+
 # ---------------------------------------------------------------------------
 # Stats
 # ---------------------------------------------------------------------------

@@ -2,8 +2,19 @@ import { useState, useEffect, useRef } from 'react'
 import type { BlockEntry } from '../types'
 import { useTheme } from '../theme'
 
-const SEEN_BLOCKS_KEY = 'hb_notif_seen_blocks'
-const SEEN_ACTIVE_KEY = 'hb_notif_seen_active'
+const SEEN_BLOCK_IDS_KEY = 'hb_notif_seen_block_ids'
+const SEEN_ACTIVE_IPS_KEY = 'hb_notif_seen_active_ips'
+
+function loadIdSet<T>(key: string): Set<T> {
+  try {
+    const raw = localStorage.getItem(key)
+    if (!raw) return new Set<T>()
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed) ? new Set<T>(parsed) : new Set<T>()
+  } catch {
+    return new Set<T>()
+  }
+}
 
 type Section = 'active' | 'system'
 
@@ -88,14 +99,8 @@ function NotificationBell() {
   const { theme } = useTheme()
   const [blocklist, setBlocklist] = useState<BlockEntry[]>([])
   const [activeSessions, setActiveSessions] = useState<ActiveSession[]>([])
-  const [seenBlocks, setSeenBlocks] = useState<number>(() => {
-    const stored = localStorage.getItem(SEEN_BLOCKS_KEY)
-    return stored ? parseInt(stored, 10) : 0
-  })
-  const [seenActive, setSeenActive] = useState<number>(() => {
-    const stored = localStorage.getItem(SEEN_ACTIVE_KEY)
-    return stored ? parseInt(stored, 10) : 0
-  })
+  const [seenBlockIds, setSeenBlockIds] = useState<Set<number>>(() => loadIdSet<number>(SEEN_BLOCK_IDS_KEY))
+  const [seenActiveIPs, setSeenActiveIPs] = useState<Set<string>>(() => loadIdSet<string>(SEEN_ACTIVE_IPS_KEY))
   const [open, setOpen] = useState(false)
   const [expanded, setExpanded] = useState<Section | null>(null)
   const ref = useRef<HTMLDivElement>(null)
@@ -174,22 +179,31 @@ function NotificationBell() {
     return () => document.removeEventListener('mousedown', handler)
   }, [])
 
-  const autoBlocked = blocklist.filter(b => b.blocked_by === 'Auto')
+  // Only show auto-blocks that are still active in the "Blocked by System" section.
+  const autoBlocked = blocklist.filter(b => b.blocked_by === 'Auto' && b.is_active === 'Block_active')
 
-  const unseenBlocks = Math.max(0, blocklist.length - seenBlocks)
-  const unseenActive = Math.max(0, activeSessions.length - seenActive)
-  const totalBadge = unseenBlocks + unseenActive
+  // Identity-based unseen counts: anything currently visible whose id/ip isn't
+  // in the seen set is genuinely new. When a session disconnects (or a block
+  // expires) it leaves the visible list, so it's no longer counted regardless
+  // of seen state — that's the disconnect-clears-badge behaviour.
+  const unseenAutoBlocks = autoBlocked.filter(b => !seenBlockIds.has(b.block_id)).length
+  const unseenActive = activeSessions.filter(s => !seenActiveIPs.has(s.ip)).length
+  const totalBadge = unseenAutoBlocks + unseenActive
 
   const handleOpen = () => {
     const willOpen = !open
     setOpen(willOpen)
     if (willOpen) {
-      const nb = blocklist.length
-      const na = activeSessions.length
-      setSeenBlocks(nb)
-      setSeenActive(na)
-      localStorage.setItem(SEEN_BLOCKS_KEY, String(nb))
-      localStorage.setItem(SEEN_ACTIVE_KEY, String(na))
+      // Snapshot the currently visible items as "seen". Anything that disappears
+      // afterwards (e.g. a session disconnect) drops out of the visible list so
+      // the badge stays accurate. Replacing (not unioning) prevents the seen
+      // set from growing unbounded across the lifetime of the install.
+      const blockIds = new Set(autoBlocked.map(b => b.block_id))
+      const activeIps = new Set(activeSessions.map(s => s.ip))
+      setSeenBlockIds(blockIds)
+      setSeenActiveIPs(activeIps)
+      localStorage.setItem(SEEN_BLOCK_IDS_KEY, JSON.stringify([...blockIds]))
+      localStorage.setItem(SEEN_ACTIVE_IPS_KEY, JSON.stringify([...activeIps]))
     }
   }
 
@@ -278,6 +292,7 @@ function NotificationBell() {
           <SectionHeader
             label="Blocked by System"
             count={autoBlocked.length}
+            badge={unseenAutoBlocks}
             expanded={expanded === 'system'}
             color={theme.badgeRed}
             onClick={() => toggleSection('system')}

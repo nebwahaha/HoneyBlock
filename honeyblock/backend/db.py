@@ -95,6 +95,16 @@ def get_sessions(limit: int = 50, offset: int = 0) -> list[dict]:
         return [dict(row) for row in rows]
 
 
+def get_sessions_for_ip(ip: str, limit: int = 200) -> list[dict]:
+    """All recorded events for a single attacker IP, newest first."""
+    with get_connection() as conn:
+        rows = conn.execute(
+            "SELECT * FROM attacker_session WHERE ip = ? ORDER BY timestamp DESC LIMIT ?",
+            (ip, limit),
+        ).fetchall()
+        return [dict(row) for row in rows]
+
+
 def _range_cutoff(time_range: str | None) -> str | None:
     """Return an ISO timestamp cutoff for the given range, or None for 'all'."""
     if not time_range or time_range == "all":

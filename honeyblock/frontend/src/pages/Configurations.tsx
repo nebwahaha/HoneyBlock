@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react'
 import { useTheme } from '../theme'
-import NotificationBell from '../components/NotificationBell'
 import CustomThemeModal from '../components/CustomThemeModal'
 
 function Configurations() {
@@ -220,10 +219,6 @@ function Configurations() {
 
   return (
     <div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: 16 }}>
-        <NotificationBell />
-      </div>
-
       {message && (
         <div
           style={{
