@@ -270,64 +270,83 @@ function Configurations() {
         <Toggle on={autoBlock} onClick={toggleAutoBlock} disabled={togglingAutoBlock || autoBlock === null} />
       </div>
 
-      {/* ─── Theme ─── */}
-      <div style={{ ...sectionLabel, marginTop: 14 }}>Theme</div>
-      <div
-        style={{
+      {/* ─── Themes ─── */}
+      {(() => {
+        const allThemes = Object.values(themes)
+        const darkThemes = allThemes.filter(t => t.kind === 'dark')
+        const lightThemes = allThemes.filter(t => t.kind === 'light')
+
+        const renderThemeButton = (t: typeof allThemes[number]) => {
+          const isActive = t.name === themeName
+          return (
+            <button
+              key={t.name}
+              onClick={() => setThemeName(t.name)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '8px 14px',
+                borderRadius: 8,
+                border: `1px solid ${isActive ? t.brand + '66' : theme.cardBorder}`,
+                background: isActive ? `${t.brand}12` : 'transparent',
+                cursor: 'pointer',
+                transition: 'all 0.15s',
+                fontFamily: 'inherit',
+              }}
+            >
+              <div style={{ display: 'flex', gap: 3 }}>
+                {[t.pageBg, t.cardBg, t.brand].map((c, i) => (
+                  <div
+                    key={i}
+                    style={{
+                      width: 10,
+                      height: 10,
+                      borderRadius: '50%',
+                      background: c,
+                      border: `1px solid ${theme.cardBorder}`,
+                    }}
+                  />
+                ))}
+              </div>
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: isActive ? 600 : 400,
+                  color: isActive ? theme.heading : theme.textSecondary,
+                }}
+              >
+                {t.label}
+              </span>
+            </button>
+          )
+        }
+
+        const groupCard: React.CSSProperties = {
           background: theme.cardBg,
           border: `1px solid ${theme.cardBorder}`,
           borderRadius: 10,
           padding: '12px 16px',
-        }}
-      >
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {Object.values(themes).map((t) => {
-            const isActive = t.name === themeName
-            return (
-              <button
-                key={t.name}
-                onClick={() => setThemeName(t.name)}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 8,
-                  padding: '8px 14px',
-                  borderRadius: 8,
-                  border: `1px solid ${isActive ? t.brand + '66' : theme.cardBorder}`,
-                  background: isActive ? `${t.brand}12` : 'transparent',
-                  cursor: 'pointer',
-                  transition: 'all 0.15s',
-                  fontFamily: 'inherit',
-                }}
-              >
-                <div style={{ display: 'flex', gap: 3 }}>
-                  {[t.pageBg, t.cardBg, t.brand].map((c, i) => (
-                    <div
-                      key={i}
-                      style={{
-                        width: 10,
-                        height: 10,
-                        borderRadius: '50%',
-                        background: c,
-                        border: `1px solid ${theme.cardBorder}`,
-                      }}
-                    />
-                  ))}
-                </div>
-                <span
-                  style={{
-                    fontSize: 12,
-                    fontWeight: isActive ? 600 : 400,
-                    color: isActive ? theme.heading : theme.textSecondary,
-                  }}
-                >
-                  {t.label}
-                </span>
-              </button>
-            )
-          })}
-        </div>
-      </div>
+        }
+
+        return (
+          <>
+            <div style={{ ...sectionLabel, marginTop: 14 }}>Dark Themes</div>
+            <div style={groupCard}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {darkThemes.map(renderThemeButton)}
+              </div>
+            </div>
+
+            <div style={{ ...sectionLabel, marginTop: 14 }}>Light Themes</div>
+            <div style={groupCard}>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {lightThemes.map(renderThemeButton)}
+              </div>
+            </div>
+          </>
+        )
+      })()}
     </div>
   )
 }

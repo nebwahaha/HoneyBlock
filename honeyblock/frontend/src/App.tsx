@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from 'react'
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { useEffect, useState } from 'react'
+import { useLocation } from 'react-router-dom'
 import { useTheme } from './theme'
 import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
@@ -11,6 +11,13 @@ const PAGE_LABELS: Record<string, string> = {
   '/blocking': 'Blocking',
   '/configurations': 'Configurations',
 }
+
+// Sidebar order — drives slide direction. Going further down the list = forward.
+const PAGE_ORDER = ['/', '/blocking', '/configurations']
+
+// iOS-style smooth ease-out (matches what most native dashboards use).
+const SLIDE_MS = 360
+const SLIDE_EASING = 'cubic-bezier(0.32, 0.72, 0, 1)'
 
 function Skeleton() {
   const { theme } = useTheme()
@@ -229,43 +236,75 @@ function Skeleton() {
   )
 }
 
-function PageWrapper({ children }: { children: React.ReactNode }) {
-  const location = useLocation()
-  const [visible, setVisible] = useState(false)
-  const [displayKey, setDisplayKey] = useState(location.pathname)
-  const [content, setContent] = useState(children)
-  const childrenRef = useRef(children)
-  childrenRef.current = children
+/**
+ * PageStack — single sliding track that holds all pages side-by-side and
+ * translates as ONE element. This is the classic iOS / Linear / mobile-app
+ * pattern for buttery navigation:
+ *
+ *   ┌──────────────────────── viewport ────────────────────────┐
+ *   │ ┌─────────────┬─────────────┬─────────────────┐ <- track │
+ *   │ │  Dashboard  │  Blocking   │ Configurations  │   (300%) │
+ *   │ └─────────────┴─────────────┴─────────────────┘          │
+ *   └──────────────────────────────────────────────────────────┘
+ *                  (the track slides left/right)
+ *
+ * Why this is smooth:
+ *  • Pages mount once and stay alive forever — no re-mounting heavy charts /
+ *    maps / polling effects on every navigation. Returning to Dashboard is
+ *    free, no flash.
+ *  • A single CSS transition on a single transform property. The browser
+ *    composites this entirely on the GPU; no JS animation orchestration.
+ *  • Lazy-mounted: pages aren't created until their first visit, so initial
+ *    load isn't bloated.
+ */
+function PageStack({ currentPath }: { currentPath: string }) {
+  // Track which pages have ever been visited, so we lazy-mount on first visit
+  // but keep them alive thereafter. Setting state during render is OK in
+  // React 18+ as long as it's guarded — this just schedules an immediate
+  // re-render so the new page mounts before the slide starts.
+  const [visited, setVisited] = useState<Set<string>>(() => new Set([currentPath]))
+  if (!visited.has(currentPath)) {
+    setVisited(prev => new Set([...prev, currentPath]))
+  }
 
-  useEffect(() => {
-    if (location.pathname === displayKey) {
-      setVisible(true)
-      return
-    }
-    setVisible(false)
-    const t = setTimeout(() => {
-      setDisplayKey(location.pathname)
-      setContent(childrenRef.current)
-      requestAnimationFrame(() => requestAnimationFrame(() => setVisible(true)))
-    }, 180)
-    return () => clearTimeout(t)
-  }, [location.pathname, displayKey])
+  const currentIdx = Math.max(0, PAGE_ORDER.indexOf(currentPath))
+  const N = PAGE_ORDER.length
+  // Each page slot is 1/N of the track's width, so translating the track by
+  // -(currentIdx / N) of its own width brings the active slot into view.
+  const trackTranslate = -(currentIdx * 100) / N
 
-  // Keep latest content for the same page (data refreshes etc.)
-  useEffect(() => {
-    if (location.pathname === displayKey) setContent(children)
-  }, [children, location.pathname, displayKey])
+  const slotStyle = (pagePath: string): React.CSSProperties => ({
+    width: `${100 / N}%`,
+    height: '100%',
+    flexShrink: 0,
+    padding: 18,
+    overflowY: pagePath === currentPath ? 'auto' : 'hidden',
+    pointerEvents: pagePath === currentPath ? 'auto' : 'none',
+  })
 
   return (
-    <div
-      style={{
-        opacity: visible ? 1 : 0,
-        transform: visible ? 'translateY(0)' : 'translateY(8px)',
-        transition: 'opacity 0.22s ease, transform 0.22s ease',
-        height: '100%',
-      }}
-    >
-      {content}
+    <div style={{ position: 'absolute', inset: 0, overflow: 'hidden' }}>
+      <div
+        style={{
+          display: 'flex',
+          height: '100%',
+          width: `${100 * N}%`,
+          transform: `translate3d(${trackTranslate}%, 0, 0)`,
+          transition: `transform ${SLIDE_MS}ms ${SLIDE_EASING}`,
+          willChange: 'transform',
+          backfaceVisibility: 'hidden',
+        }}
+      >
+        <div style={slotStyle('/')} aria-hidden={currentPath !== '/'}>
+          {visited.has('/') && <Dashboard />}
+        </div>
+        <div style={slotStyle('/blocking')} aria-hidden={currentPath !== '/blocking'}>
+          {visited.has('/blocking') && <Blocking />}
+        </div>
+        <div style={slotStyle('/configurations')} aria-hidden={currentPath !== '/configurations'}>
+          {visited.has('/configurations') && <Configurations />}
+        </div>
+      </div>
     </div>
   )
 }
@@ -362,14 +401,8 @@ function App() {
           </div>
         </div>
 
-        <main style={{ flex: 1, padding: 18, overflowY: 'auto' }}>
-          <PageWrapper>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/blocking" element={<Blocking />} />
-              <Route path="/configurations" element={<Configurations />} />
-            </Routes>
-          </PageWrapper>
+        <main style={{ flex: 1, overflow: 'hidden', position: 'relative', minHeight: 0 }}>
+          <PageStack currentPath={location.pathname} />
         </main>
       </div>
     </div>

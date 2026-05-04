@@ -11,12 +11,134 @@ import StatCardPopup from '../components/StatCardPopup'
 import ProtocolChart from '../components/ProtocolChart'
 import EventsHistogram from '../components/EventsHistogram'
 import NotificationBell from '../components/NotificationBell'
+const REFRESH_SKELETON_MS = 1500
+
+function DashboardSkeleton() {
+  const { theme } = useTheme()
+  const shimmer = (w: number | string, h: number, r: number = 6, extra: React.CSSProperties = {}): React.CSSProperties => ({
+    width: w,
+    height: h,
+    borderRadius: r,
+    background: `linear-gradient(90deg, ${theme.cardBg} 25%, ${theme.cardHoverBg} 50%, ${theme.cardBg} 75%)`,
+    backgroundSize: '600px 100%',
+    animation: 'shimmer 1.4s infinite linear',
+    flexShrink: 0,
+    ...extra,
+  })
+
+  const card: React.CSSProperties = {
+    background: theme.cardBg,
+    border: `1px solid ${theme.cardBorder}`,
+    borderRadius: 10,
+    padding: 14,
+  }
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', gap: 12 }}>
+      {/* Toolbar skeleton */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <div style={shimmer(140, 14, 4)} />
+        </div>
+        <div style={{ display: 'flex', gap: 6 }}>
+          {[1, 2, 3, 4].map(i => <div key={i} style={shimmer(36, 36, 8)} />)}
+        </div>
+      </div>
+
+      {/* Stat cards skeleton */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+        {[1, 2, 3, 4].map(i => (
+          <div
+            key={i}
+            style={{
+              ...card,
+              padding: '16px 20px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 14,
+            }}
+          >
+            <div style={shimmer(40, 40, 9)} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={shimmer(58, 22, 4)} />
+              <div style={shimmer(82, 9, 3)} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Charts row skeleton (1fr + 2fr to mirror Dashboard layout) */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, flex: 1, minHeight: 0 }}>
+        <div style={{ ...card, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ ...shimmer(120, 12, 3), marginBottom: 14 }} />
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 9, flex: 1, justifyContent: 'center' }}>
+            {[80, 55, 70, 40, 60].map((w, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={shimmer(96, 11, 3)} />
+                <div style={{ flex: 1, height: 18, borderRadius: 4, background: theme.cardBorder, overflow: 'hidden' }}>
+                  <div style={{ ...shimmer(`${w}%`, 18, 4), width: `${w}%` }} />
+                </div>
+                <div style={shimmer(24, 11, 3)} />
+              </div>
+            ))}
+          </div>
+        </div>
+        <div style={{ ...card, gridColumn: 'span 2', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ ...shimmer(140, 12, 3), marginBottom: 12 }} />
+          <div style={{ ...shimmer('100%', 0, 8), flex: 1 }} />
+        </div>
+      </div>
+
+      {/* Tables row skeleton */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, flex: 1, minHeight: 0 }}>
+        {[1, 2, 3].map(col => (
+          <div key={col} style={{ ...card, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+            <div style={{ ...shimmer(110, 12, 3), marginBottom: 12 }} />
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                padding: '7px 12px',
+                background: theme.tableHeaderBg,
+                borderBottom: `1px solid ${theme.cardBorder}`,
+                marginLeft: -14,
+                marginRight: -14,
+              }}
+            >
+              <div style={shimmer(60, 9, 2)} />
+              <div style={shimmer(30, 9, 2)} />
+            </div>
+            {[1, 2, 3, 4, 5, 6, 7].map(r => (
+              <div
+                key={r}
+                style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  padding: '8px 12px',
+                  borderBottom: `1px solid ${theme.cardBorder}`,
+                  background: r % 2 === 0 ? theme.tableRowOdd : theme.tableRowEven,
+                  marginLeft: -14,
+                  marginRight: -14,
+                }}
+              >
+                <div style={shimmer(r % 2 ? 55 : 70, 10, 3)} />
+                <div style={shimmer(25, 10, 3)} />
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function Dashboard() {
   const { theme } = useTheme()
   const [stats, setStats] = useState<Stats | null>(null)
   const [attackers, setAttackers] = useState<Attacker[]>([])
   const [activeSessions, setActiveSessions] = useState<number>(0)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<string>('')
   const [liveFeedOpen, setLiveFeedOpen] = useState(false)
   const [showProtocol, setShowProtocol] = useState(false)
@@ -31,6 +153,13 @@ function Dashboard() {
   const isDragging = useRef(false)
 
   const hasNewLogs = logCount > 0 && logCount > seenLogCount
+
+  const handleManualRefresh = () => {
+    if (refreshing) return
+    setRefreshing(true)
+    fetchData()
+    setTimeout(() => setRefreshing(false), REFRESH_SKELETON_MS)
+  }
 
   const handleLogsToggle = () => {
     if (!liveFeedOpen) {
@@ -158,12 +287,8 @@ function Dashboard() {
     borderBottom: `1px solid ${theme.cardBorder}`,
   }
 
-  if (loading) {
-    return (
-      <div style={{ color: theme.textSecondary, display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-        Loading dashboard...
-      </div>
-    )
+  if (loading || refreshing) {
+    return <DashboardSkeleton />
   }
 
   return (
@@ -243,7 +368,8 @@ function Dashboard() {
             )}
           </div>
           <button
-            onClick={fetchData}
+            onClick={handleManualRefresh}
+            disabled={refreshing}
             title="Refresh"
             style={{
               width: 36,
@@ -251,15 +377,27 @@ function Dashboard() {
               borderRadius: 8,
               background: theme.btnBg,
               border: `1px solid ${theme.btnBorder}`,
-              cursor: 'pointer',
+              cursor: refreshing ? 'wait' : 'pointer',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              color: theme.btnText,
+              color: refreshing ? theme.brand : theme.btnText,
               transition: 'all 0.15s',
+              opacity: refreshing ? 0.85 : 1,
             }}
           >
-            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <svg
+              width="15"
+              height="15"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              style={{
+                animation: refreshing ? 'spin 0.9s linear infinite' : undefined,
+                transformOrigin: 'center',
+              }}
+            >
               <polyline points="23 4 23 10 17 10" />
               <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
             </svg>

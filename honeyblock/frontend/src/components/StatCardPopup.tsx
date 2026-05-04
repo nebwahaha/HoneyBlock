@@ -12,12 +12,12 @@ interface Props {
   value: string | number
   /** accent colour used for icon tint, hover glow, etc. Defaults to brand */
   color?: string
-  /** stagger index for the pop-in animation */
+  /** kept for backwards-compat with callers; no longer used */
   delay?: number
   fetchRows: (page: number) => Promise<{ rows: PopupRow[]; hasMore: boolean }>
 }
 
-function StatCardPopup({ icon, label, value, color, delay = 0, fetchRows }: Props) {
+function StatCardPopup({ icon, label, value, color, fetchRows }: Props) {
   const { theme } = useTheme()
   const [hovered, setHovered] = useState(false)
   const [open, setOpen] = useState(false)
@@ -78,7 +78,6 @@ function StatCardPopup({ icon, label, value, color, delay = 0, fetchRows }: Prop
           transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
           boxShadow: hovered ? `0 4px 20px ${accent}22` : 'none',
           transition: 'background 0.18s, border-color 0.18s, transform 0.18s, box-shadow 0.18s',
-          animation: `stat-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) ${delay * 0.07}s both`,
         }}
       >
         <div

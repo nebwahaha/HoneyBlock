@@ -7,11 +7,11 @@ interface StatCardProps {
   value: string | number
   /** accent colour used for icon tint, hover glow, etc. Defaults to brand */
   color?: string
-  /** stagger index for the pop-in animation */
+  /** kept for backwards-compat with callers; no longer used */
   delay?: number
 }
 
-function StatCard({ icon, label, value, color, delay = 0 }: StatCardProps) {
+function StatCard({ icon, label, value, color }: StatCardProps) {
   const { theme } = useTheme()
   const [hovered, setHovered] = useState(false)
   const accent = color ?? theme.brand
@@ -32,7 +32,6 @@ function StatCard({ icon, label, value, color, delay = 0 }: StatCardProps) {
         transform: hovered ? 'translateY(-1px)' : 'translateY(0)',
         boxShadow: hovered ? `0 4px 20px ${accent}22` : 'none',
         transition: 'background 0.18s, border-color 0.18s, transform 0.18s, box-shadow 0.18s',
-        animation: `stat-pop 0.4s cubic-bezier(0.34,1.56,0.64,1) ${delay * 0.07}s both`,
       }}
     >
       <div
