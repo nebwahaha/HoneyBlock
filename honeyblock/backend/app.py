@@ -280,6 +280,73 @@ def cowrie_toggle():
 
 
 # ---------------------------------------------------------------------------
+# Log watcher (honeyblock-watcher service)
+# ---------------------------------------------------------------------------
+WATCHER_SERVICE = "honeyblock-watcher"
+
+
+def _watcher_is_active() -> bool:
+    result = subprocess.run(
+        ["systemctl", "is-active", WATCHER_SERVICE],
+        capture_output=True, text=True, timeout=10
+    )
+    return result.stdout.strip() == "active"
+
+
+@app.route("/api/watcher/status")
+def watcher_status():
+    try:
+        return jsonify({"running": _watcher_is_active()})
+    except Exception as exc:
+        return jsonify({"running": False, "error": str(exc)}), 500
+
+
+@app.route("/api/watcher/toggle", methods=["POST"])
+def watcher_toggle():
+    try:
+        running = _watcher_is_active()
+        action = "stop" if running else "start"
+        result = subprocess.run(
+            ["systemctl", action, WATCHER_SERVICE],
+            capture_output=True, text=True, timeout=30
+        )
+        if result.returncode != 0:
+            return jsonify({
+                "running": running,
+                "message": f"Failed to {action} log watcher: {result.stderr.strip()}"
+            }), 500
+
+        new_state = _watcher_is_active()
+        return jsonify({
+            "running": new_state,
+            "message": f"Log watcher {'started' if new_state else 'stopped'} successfully"
+        })
+    except Exception as exc:
+        return jsonify({"running": False, "message": str(exc)}), 500
+
+
+@app.route("/api/watcher/restart", methods=["POST"])
+def watcher_restart():
+    try:
+        result = subprocess.run(
+            ["systemctl", "restart", WATCHER_SERVICE],
+            capture_output=True, text=True, timeout=30
+        )
+        if result.returncode != 0:
+            return jsonify({
+                "running": _watcher_is_active(),
+                "message": f"Failed to restart log watcher: {result.stderr.strip()}"
+            }), 500
+
+        return jsonify({
+            "running": _watcher_is_active(),
+            "message": "Log watcher restarted successfully"
+        })
+    except Exception as exc:
+        return jsonify({"running": False, "message": str(exc)}), 500
+
+
+# ---------------------------------------------------------------------------
 # Auto-start on boot
 # ---------------------------------------------------------------------------
 AUTOSTART_SERVICES = ["cowrie", "honeyblock", "honeyblock-watcher"]

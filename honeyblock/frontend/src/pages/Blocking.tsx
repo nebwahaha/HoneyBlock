@@ -188,19 +188,28 @@ function Blocking() {
         </div>
       )}
 
-      {/* Auto-block session limit */}
+      {/* Settings row — session limit + block expiration */}
+      <div
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+          gap: 12,
+          marginBottom: 24,
+        }}
+      >
       <div
         style={{
           ...cardStyle,
-          marginBottom: 24,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap',
         }}
       >
-        <div>
+        <div style={{ flex: 1, minWidth: 200 }}>
           <h3 style={{ color: theme.heading, fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
-            Automatic Blocking — Session Limit
+            Automatic Blocking Session Limit
           </h3>
           <p style={{ color: theme.textSecondary, fontSize: 13, margin: 0 }}>
             Attackers are automatically blocked after reaching this number of sessions.
@@ -213,69 +222,113 @@ function Blocking() {
             )}
           </p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {/* Stepper */}
-          <div style={{
-            display: 'flex', alignItems: 'center',
-            background: theme.tableHeaderBg, border: `1px solid ${theme.tooltipBorder}`,
-            borderRadius: 8, overflow: 'hidden',
-          }}>
-            <button
-              onClick={() => setThresholdInput(v => String(Math.max(1, parseInt(v, 10) - 1)))}
-              style={{
-                width: 36, height: 36, background: 'transparent',
-                border: 'none', color: theme.textTertiary, fontSize: 18,
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-            >−</button>
-            <span style={{
-              minWidth: 40, textAlign: 'center',
-              color: theme.heading, fontSize: 15, fontWeight: 700,
-              borderLeft: `1px solid ${theme.tooltipBorder}`, borderRight: `1px solid ${theme.tooltipBorder}`,
-              padding: '0 8px', lineHeight: '36px',
-            }}>
-              {thresholdInput}
-            </span>
-            <button
-              onClick={() => setThresholdInput(v => String(parseInt(v, 10) + 1))}
-              style={{
-                width: 36, height: 36, background: 'transparent',
-                border: 'none', color: theme.textTertiary, fontSize: 18,
-                cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-              }}
-            >+</button>
-          </div>
-          <button
-            onClick={saveThreshold}
-            disabled={savingThreshold || parseInt(thresholdInput, 10) === threshold}
-            style={{
-              padding: '8px 20px',
-              border: 'none',
-              borderRadius: 8,
-              fontWeight: 600,
-              fontSize: 13,
-              cursor: savingThreshold || parseInt(thresholdInput, 10) === threshold ? 'default' : 'pointer',
-              color: '#ffffff',
-              background: savingThreshold || parseInt(thresholdInput, 10) === threshold ? theme.cardBorder : theme.bluePrimary,
-              transition: 'background 0.15s',
-            }}
-          >
-            {savingThreshold ? 'Saving...' : 'Save'}
-          </button>
-        </div>
+        {(() => {
+          const parsed = parseInt(thresholdInput, 10)
+          const isValid = !isNaN(parsed) && parsed >= 1
+          const isDirty = isValid && parsed !== threshold
+          const canSave = isDirty && !savingThreshold
+
+          return (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              {/* Stepper */}
+              <div style={{
+                display: 'flex', alignItems: 'center',
+                background: theme.tableHeaderBg, border: `1px solid ${theme.tooltipBorder}`,
+                borderRadius: 8, overflow: 'hidden',
+              }}>
+                <button
+                  onClick={() => setThresholdInput(v => {
+                    const n = parseInt(v, 10)
+                    return String(Math.max(1, (isNaN(n) ? 1 : n) - 1))
+                  })}
+                  aria-label="Decrease session limit"
+                  style={{
+                    width: 36, height: 36, background: 'transparent',
+                    border: 'none', color: theme.textTertiary, fontSize: 18,
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: 'inherit',
+                  }}
+                >−</button>
+                <input
+                  type="number"
+                  className="no-spinner"
+                  min={1}
+                  value={thresholdInput}
+                  onChange={(e) => {
+                    // Allow empty string while editing; strip non-digits
+                    const raw = e.target.value.replace(/[^\d]/g, '')
+                    setThresholdInput(raw)
+                  }}
+                  onBlur={() => {
+                    // Snap empty/zero back to 1 when the user leaves the field
+                    const n = parseInt(thresholdInput, 10)
+                    if (isNaN(n) || n < 1) setThresholdInput('1')
+                  }}
+                  onKeyDown={(e) => { if (e.key === 'Enter' && canSave) saveThreshold() }}
+                  aria-label="Session limit"
+                  style={{
+                    width: 56, textAlign: 'center',
+                    color: isValid ? theme.heading : theme.error,
+                    fontSize: 15, fontWeight: 700,
+                    borderLeft: `1px solid ${theme.tooltipBorder}`,
+                    borderRight: `1px solid ${theme.tooltipBorder}`,
+                    borderTop: 'none', borderBottom: 'none',
+                    background: 'transparent',
+                    padding: '0 8px', height: 36,
+                    fontFamily: 'inherit',
+                    outline: 'none',
+                  }}
+                />
+                <button
+                  onClick={() => setThresholdInput(v => {
+                    const n = parseInt(v, 10)
+                    return String((isNaN(n) ? 0 : n) + 1)
+                  })}
+                  aria-label="Increase session limit"
+                  style={{
+                    width: 36, height: 36, background: 'transparent',
+                    border: 'none', color: theme.textTertiary, fontSize: 18,
+                    cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontFamily: 'inherit',
+                  }}
+                >+</button>
+              </div>
+              <button
+                onClick={saveThreshold}
+                disabled={!canSave}
+                style={{
+                  padding: '8px 20px',
+                  border: `1px solid ${canSave ? theme.brand : theme.cardBorder}`,
+                  borderRadius: 8,
+                  fontWeight: 700,
+                  fontSize: 13,
+                  cursor: canSave ? 'pointer' : 'not-allowed',
+                  color: canSave ? theme.pageBg : theme.textTertiary,
+                  background: canSave ? theme.brand : theme.cardBg,
+                  transition: 'background 0.15s, color 0.15s, border-color 0.15s',
+                  fontFamily: 'inherit',
+                  minWidth: 80,
+                }}
+              >
+                {savingThreshold ? 'Saving...' : 'Save'}
+              </button>
+            </div>
+          )
+        })()}
       </div>
 
       {/* Block expiration duration */}
       <div
         style={{
           ...cardStyle,
-          marginBottom: 24,
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
+          gap: 12,
+          flexWrap: 'wrap',
         }}
       >
-        <div>
+        <div style={{ flex: 1, minWidth: 200 }}>
           <h3 style={{ color: theme.heading, fontSize: 13, fontWeight: 700, marginBottom: 4 }}>
             Block Expiration
           </h3>
@@ -304,6 +357,7 @@ function Blocking() {
           <option value="1w">1 Week</option>
           <option value="1m">1 Month</option>
         </select>
+      </div>
       </div>
 
       {/* Attacker list with block/unblock buttons */}

@@ -314,6 +314,7 @@ function App() {
   const location = useLocation()
   const [loading, setLoading] = useState(true)
   const [cowrieRunning, setCowrieRunning] = useState<boolean | null>(null)
+  const [watcherRunning, setWatcherRunning] = useState<boolean | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 1200)
@@ -322,28 +323,46 @@ function App() {
 
   useEffect(() => {
     let cancelled = false
-    const fetchCowrie = async () => {
+    const fetchStatus = async () => {
       try {
-        const res = await fetch('/api/cowrie/status')
-        if (!res.ok) return
-        const data = await res.json()
-        if (!cancelled) setCowrieRunning(!!data.running)
+        const [cowrieRes, watcherRes] = await Promise.all([
+          fetch('/api/cowrie/status'),
+          fetch('/api/watcher/status'),
+        ])
+        if (cowrieRes.ok) {
+          const data = await cowrieRes.json()
+          if (!cancelled) setCowrieRunning(!!data.running)
+        }
+        if (watcherRes.ok) {
+          const data = await watcherRes.json()
+          if (!cancelled) setWatcherRunning(!!data.running)
+        }
       } catch {
         // retry next tick
       }
     }
-    fetchCowrie()
-    const id = setInterval(fetchCowrie, 10_000)
+    fetchStatus()
+    const id = setInterval(fetchStatus, 10_000)
     return () => { cancelled = true; clearInterval(id) }
   }, [])
 
   if (loading) return <Skeleton />
 
   const pageLabel = PAGE_LABELS[location.pathname] ?? 'Dashboard'
-  const cowrieColor =
-    cowrieRunning === null ? theme.textTertiary : cowrieRunning ? theme.success : theme.error
-  const cowrieLabel =
-    cowrieRunning === null ? 'Checking…' : cowrieRunning ? 'Cowrie · Running' : 'Cowrie · Stopped'
+  const statusPill = (
+    running: boolean | null,
+    label: string,
+  ): { color: string; text: string; tooltip: string } => {
+    if (running === null) {
+      return { color: theme.textTertiary, text: `${label} · Checking…`, tooltip: `${label} status unknown` }
+    }
+    if (running) {
+      return { color: theme.success, text: `${label} · Running`, tooltip: `${label} is running` }
+    }
+    return { color: theme.error, text: `${label} · Stopped`, tooltip: `${label} is stopped` }
+  }
+  const cowriePill = statusPill(cowrieRunning, 'Cowrie')
+  const watcherPill = statusPill(watcherRunning, 'Watcher')
 
   return (
     <div
@@ -375,29 +394,37 @@ function App() {
             <span style={{ color: theme.textTertiary, fontSize: 12 }}>/</span>
             <span style={{ color: theme.heading, fontSize: 12, fontWeight: 600 }}>{pageLabel}</span>
           </div>
-          <div
-            style={{ display: 'flex', alignItems: 'center', gap: 6 }}
-            title={cowrieRunning === null ? 'Cowrie status unknown' : cowrieRunning ? 'Cowrie honeypot is running' : 'Cowrie honeypot is stopped'}
-          >
-            <div
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: '50%',
-                background: cowrieColor,
-                color: cowrieColor,
-                animation: cowrieRunning ? 'pulse-dot 2s infinite' : undefined,
-              }}
-            />
-            <span
-              style={{
-                fontSize: 11,
-                color: cowrieRunning === null ? theme.textTertiary : cowrieColor,
-                fontFamily: "'JetBrains Mono', 'Consolas', monospace",
-              }}
-            >
-              {cowrieLabel}
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            {[
+              { pill: cowriePill, running: cowrieRunning },
+              { pill: watcherPill, running: watcherRunning },
+            ].map(({ pill, running }, i) => (
+              <div
+                key={i}
+                style={{ display: 'flex', alignItems: 'center', gap: 6 }}
+                title={pill.tooltip}
+              >
+                <div
+                  style={{
+                    width: 7,
+                    height: 7,
+                    borderRadius: '50%',
+                    background: pill.color,
+                    color: pill.color,
+                    animation: running ? 'pulse-dot 2s infinite' : undefined,
+                  }}
+                />
+                <span
+                  style={{
+                    fontSize: 11,
+                    color: pill.color,
+                    fontFamily: "'JetBrains Mono', 'Consolas', monospace",
+                  }}
+                >
+                  {pill.text}
+                </span>
+              </div>
+            ))}
           </div>
         </div>
 

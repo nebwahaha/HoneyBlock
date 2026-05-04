@@ -679,27 +679,240 @@ export const themes: Record<string, Theme> = {
 // Backwards-compat: keep darkTheme export so any leftover imports don't break
 export const darkTheme = obsidianTheme
 
+// ─── Color helpers ────────────────────────────────────────────────
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  let cleaned = hex.replace('#', '')
+  if (cleaned.length === 3) {
+    cleaned = cleaned.split('').map(c => c + c).join('')
+  }
+  if (cleaned.length !== 6) return null
+  const r = parseInt(cleaned.slice(0, 2), 16)
+  const g = parseInt(cleaned.slice(2, 4), 16)
+  const b = parseInt(cleaned.slice(4, 6), 16)
+  if (isNaN(r) || isNaN(g) || isNaN(b)) return null
+  return { r, g, b }
+}
+
+function clampByte(n: number): number { return Math.max(0, Math.min(255, Math.round(n))) }
+
+/** Returns rgba() string with the given alpha applied to a hex color. */
+export function alpha(hex: string, a: number): string {
+  const rgb = hexToRgb(hex)
+  if (!rgb) return hex
+  return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${a})`
+}
+
+/** Shifts hex by an amount in [-1, 1]. Positive = lighter. */
+export function shift(hex: string, amount: number): string {
+  const rgb = hexToRgb(hex)
+  if (!rgb) return hex
+  const delta = Math.round(amount * 255)
+  const r = clampByte(rgb.r + delta).toString(16).padStart(2, '0')
+  const g = clampByte(rgb.g + delta).toString(16).padStart(2, '0')
+  const b = clampByte(rgb.b + delta).toString(16).padStart(2, '0')
+  return `#${r}${g}${b}`
+}
+
+function deriveBorder(bg: string, isDark: boolean): string {
+  return shift(bg, isDark ? 0.06 : -0.05)
+}
+
+export const HEX_REGEX = /^#[0-9a-fA-F]{6}$/
+
+// ─── Custom theme builder ─────────────────────────────────────────
+
+export interface CustomThemeInput {
+  base: 'dark' | 'light'
+  pageBg: string
+  cardBg: string
+  sidebarBg: string
+  brand: string
+  heading: string
+  textPrimary: string
+  success: string
+  error: string
+}
+
+/** Reasonable starting colors for a fresh custom theme. */
+export const DEFAULT_CUSTOM_INPUT: CustomThemeInput = {
+  base: 'dark',
+  pageBg: obsidianTheme.pageBg,
+  cardBg: obsidianTheme.cardBg,
+  sidebarBg: obsidianTheme.sidebarBg,
+  brand: obsidianTheme.brand,
+  heading: obsidianTheme.heading,
+  textPrimary: obsidianTheme.textPrimary,
+  success: obsidianTheme.success,
+  error: obsidianTheme.error,
+}
+
+/**
+ * Take 8 user-chosen colors and produce a full Theme by deriving the rest.
+ * The base theme provides fallbacks for fields the user can't directly set
+ * (amber/orange/etc); everything visually meaningful is derived.
+ */
+export function buildCustomTheme(input: CustomThemeInput, label = 'Custom'): Theme {
+  const isDark = input.base === 'dark'
+  const baseTheme = isDark ? obsidianTheme : githubLightTheme
+
+  const cardBorder = deriveBorder(input.cardBg, isDark)
+  const cardHoverBg = shift(input.cardBg, isDark ? 0.04 : -0.03)
+  const cardHoverBorder = shift(cardBorder, isDark ? 0.06 : -0.06)
+  const sidebarBorder = deriveBorder(input.sidebarBg, isDark)
+
+  const textSecondary = shift(input.textPrimary, isDark ? -0.18 : 0.18)
+  const textTertiary = shift(input.textPrimary, isDark ? -0.30 : 0.30)
+
+  const tableHeaderBg = shift(input.cardBg, isDark ? -0.025 : 0.025)
+  const tableRowOdd = shift(input.cardBg, isDark ? -0.02 : 0.015)
+
+  return {
+    ...baseTheme,
+    name: 'custom',
+    label,
+    kind: input.base,
+
+    // ── User-set ──────────────
+    pageBg: input.pageBg,
+    cardBg: input.cardBg,
+    sidebarBg: input.sidebarBg,
+    brand: input.brand,
+    heading: input.heading,
+    textPrimary: input.textPrimary,
+    text: input.textPrimary,
+    success: input.success,
+    error: input.error,
+    badgeRed: input.error,
+
+    // ── Derived: surfaces ─────
+    cardBorder,
+    cardHoverBg,
+    cardHoverBorder,
+    sidebarBorder,
+    feedBg: tableHeaderBg,
+    feedBorder: cardBorder,
+    tooltipBg: input.cardBg,
+    tooltipBorder: cardBorder,
+    tableRowEven: input.cardBg,
+    tableRowOdd,
+    tableHeaderBg,
+    blockStatusInactiveBg: input.cardBg,
+    notifItemBg: input.cardBg,
+    pieStroke: input.cardBg,
+
+    // ── Derived: text variants ────
+    textSecondary,
+    textTertiary,
+    axisTick: textSecondary,
+
+    // ── Derived: brand tints ──
+    iconAccent: input.brand,
+    iconAccentBg: alpha(input.brand, 0.12),
+    blueLink: input.brand,
+    bluePrimary: input.brand,
+    navActiveText: input.brand,
+    navActiveBg: alpha(input.brand, 0.10),
+    barCursor: alpha(input.brand, 0.10),
+    mapMarker: input.brand,
+    tcpTunnel: input.brand,
+    toggleActiveBorder: input.brand,
+    toggleActiveText: input.brand,
+
+    // ── Derived: success / error chips ──
+    blockBtn: alpha(input.error, 0.13),
+    blockBtnText: input.error,
+    blockBtnBorder: alpha(input.error, 0.30),
+    unblockBtn: alpha(input.success, 0.10),
+    unblockBtnText: input.success,
+    unblockBtnBorder: alpha(input.success, 0.28),
+    messageBgError: alpha(input.error, 0.07),
+    messageBgSuccess: alpha(input.success, 0.07),
+    blockStatusActiveBg: alpha(input.error, 0.07),
+    fileDownload: input.error,
+
+    // ── Buttons ──────────────
+    btnBg: input.cardBg,
+    btnBorder: cardBorder,
+    btnText: textSecondary,
+
+    // ── Toggles ───────────────
+    toggleInactiveBorder: cardBorder,
+    toggleInactiveText: textSecondary,
+    toggleDisabledBg: shift(input.cardBg, 0.04),
+
+    // ── Misc ─────────────────
+    arrow: textTertiary,
+    sessionClosed: textTertiary,
+    scrollbarThumb: cardBorder,
+    mapFill: shift(input.cardBg, isDark ? 0.04 : -0.03),
+    mapStroke: cardBorder,
+    modalOverlay: isDark ? 'rgba(0,0,0,0.6)' : 'rgba(0,0,0,0.4)',
+    shadow: isDark ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.10)',
+    dropdownShadow: isDark ? 'rgba(0,0,0,0.7)' : 'rgba(0,0,0,0.15)',
+  }
+}
+
+// ─── Theme provider ───────────────────────────────────────────────
+
 const THEME_KEY = 'hb_theme'
+const CUSTOM_THEME_KEY = 'hb_custom_theme'
 
 interface ThemeContextValue {
   theme: Theme
   themeName: string
   setThemeName: (name: string) => void
+  customTheme: Theme | null
+  saveCustomTheme: (theme: Theme | null) => void
+  /** All themes the user can switch to, including 'custom' if it exists. */
+  allThemes: Record<string, Theme>
 }
 
 const ThemeContext = createContext<ThemeContextValue>({
   theme: obsidianTheme,
   themeName: 'obsidian',
   setThemeName: () => {},
+  customTheme: null,
+  saveCustomTheme: () => {},
+  allThemes: themes,
 })
 
+function loadCustomTheme(): Theme | null {
+  try {
+    const raw = localStorage.getItem(CUSTOM_THEME_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as Theme
+  } catch {
+    return null
+  }
+}
+
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [customTheme, setCustomTheme] = useState<Theme | null>(() => loadCustomTheme())
+
   const [themeName, setThemeName] = useState(() => {
     const saved = localStorage.getItem(THEME_KEY)
-    return saved && themes[saved] ? saved : 'obsidian'
+    if (!saved) return 'obsidian'
+    if (saved === 'custom' && loadCustomTheme()) return 'custom'
+    return themes[saved] ? saved : 'obsidian'
   })
 
-  const theme = themes[themeName] ?? obsidianTheme
+  const allThemes: Record<string, Theme> = customTheme
+    ? { ...themes, custom: customTheme }
+    : themes
+
+  const theme = allThemes[themeName] ?? obsidianTheme
+
+  const saveCustomTheme = (t: Theme | null) => {
+    setCustomTheme(t)
+    if (t) {
+      localStorage.setItem(CUSTOM_THEME_KEY, JSON.stringify(t))
+    } else {
+      localStorage.removeItem(CUSTOM_THEME_KEY)
+      // If we were on the custom theme and it gets deleted, fall back to default
+      if (themeName === 'custom') setThemeName('obsidian')
+    }
+  }
 
   useEffect(() => {
     localStorage.setItem(THEME_KEY, themeName)
@@ -710,7 +923,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [themeName, theme])
 
   return (
-    <ThemeContext.Provider value={{ theme, themeName, setThemeName }}>
+    <ThemeContext.Provider value={{ theme, themeName, setThemeName, customTheme, saveCustomTheme, allThemes }}>
       {children}
     </ThemeContext.Provider>
   )

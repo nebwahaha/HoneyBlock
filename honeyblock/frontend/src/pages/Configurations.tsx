@@ -1,27 +1,37 @@
 import { useState, useEffect } from 'react'
-import { useTheme, themes } from '../theme'
+import { useTheme } from '../theme'
 import NotificationBell from '../components/NotificationBell'
+import CustomThemeModal from '../components/CustomThemeModal'
 
 function Configurations() {
-  const { theme, themeName, setThemeName } = useTheme()
+  const { theme, themeName, setThemeName, allThemes, customTheme } = useTheme()
+  const [customizeOpen, setCustomizeOpen] = useState(false)
   const [cowrieRunning, setCowrieRunning] = useState<boolean | null>(null)
+  const [watcherRunning, setWatcherRunning] = useState<boolean | null>(null)
   const [autoStart, setAutoStart] = useState<boolean | null>(null)
   const [autoBlock, setAutoBlock] = useState<boolean | null>(null)
   const [toggling, setToggling] = useState(false)
+  const [togglingWatcher, setTogglingWatcher] = useState(false)
+  const [restartingWatcher, setRestartingWatcher] = useState(false)
   const [togglingAuto, setTogglingAuto] = useState(false)
   const [togglingAutoBlock, setTogglingAutoBlock] = useState(false)
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
 
   const fetchStatus = async () => {
     try {
-      const [cowrieRes, autoRes, autoBlockRes] = await Promise.all([
+      const [cowrieRes, watcherRes, autoRes, autoBlockRes] = await Promise.all([
         fetch('/api/cowrie/status'),
+        fetch('/api/watcher/status'),
         fetch('/api/autostart/status'),
         fetch('/api/autoblock/status'),
       ])
       if (cowrieRes.ok) {
         const data = await cowrieRes.json()
         setCowrieRunning(data.running)
+      }
+      if (watcherRes.ok) {
+        const data = await watcherRes.json()
+        setWatcherRunning(data.running)
       }
       if (autoRes.ok) {
         const data = await autoRes.json()
@@ -57,6 +67,42 @@ function Configurations() {
       setMessage({ text: 'Failed to toggle Cowrie', error: true })
     } finally {
       setToggling(false)
+    }
+  }
+
+  const toggleWatcher = async () => {
+    setTogglingWatcher(true)
+    setMessage(null)
+    try {
+      const res = await fetch('/api/watcher/toggle', { method: 'POST' })
+      const data = await res.json()
+      setWatcherRunning(data.running)
+      setMessage({
+        text: data.message ?? (data.running ? 'Log watcher started' : 'Log watcher stopped'),
+        error: !res.ok,
+      })
+    } catch {
+      setMessage({ text: 'Failed to toggle log watcher', error: true })
+    } finally {
+      setTogglingWatcher(false)
+    }
+  }
+
+  const restartWatcher = async () => {
+    setRestartingWatcher(true)
+    setMessage(null)
+    try {
+      const res = await fetch('/api/watcher/restart', { method: 'POST' })
+      const data = await res.json()
+      setWatcherRunning(data.running)
+      setMessage({
+        text: data.message ?? 'Log watcher restarted',
+        error: !res.ok,
+      })
+    } catch {
+      setMessage({ text: 'Failed to restart log watcher', error: true })
+    } finally {
+      setRestartingWatcher(false)
     }
   }
 
@@ -109,11 +155,17 @@ function Configurations() {
     background: theme.cardBg,
     border: `1px solid ${theme.cardBorder}`,
     borderRadius: 10,
-    padding: '12px 16px',
-    marginBottom: 8,
+    padding: '16px 16px',
     display: 'flex',
     alignItems: 'center',
     gap: 14,
+    minWidth: 0,
+  }
+
+  const grid2Col: React.CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))',
+    gap: 10,
   }
 
   const iconBox = (active: boolean): React.CSSProperties => ({
@@ -192,6 +244,7 @@ function Configurations() {
       {/* ─── Service Controls ─── */}
       <div style={sectionLabel}>Service Controls</div>
 
+      <div style={grid2Col}>
       <div style={rowCard}>
         <div style={iconBox(!!cowrieRunning)}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -199,7 +252,7 @@ function Configurations() {
             <line x1="12" y1="19" x2="20" y2="19" />
           </svg>
         </div>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: theme.heading }}>Cowrie Honeypot</div>
           <div style={{ fontSize: 11, color: theme.textSecondary, marginTop: 1 }}>
             SSH/Telnet honeypot service ·{' '}
@@ -229,9 +282,87 @@ function Configurations() {
         </button>
       </div>
 
+      {/* Log watcher */}
+      <div style={rowCard}>
+        <div style={iconBox(!!watcherRunning)}>
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: theme.heading }}>Log Watcher</div>
+          <div style={{ fontSize: 11, color: theme.textSecondary, marginTop: 1 }}>
+            Tails Cowrie logs into the database ·{' '}
+            <span style={{ color: watcherRunning ? theme.success : theme.error, fontWeight: 600 }}>
+              {watcherRunning === null ? 'Checking…' : watcherRunning ? 'Running' : 'Stopped'}
+            </span>
+          </div>
+        </div>
+        <button
+          onClick={restartWatcher}
+          disabled={restartingWatcher || togglingWatcher || watcherRunning === null}
+          title="Restart the log watcher"
+          aria-label="Restart log watcher"
+          style={{
+            width: 36,
+            height: 32,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            border: `1px solid ${theme.btnBorder}`,
+            borderRadius: 7,
+            background: theme.btnBg,
+            color: restartingWatcher ? theme.brand : theme.btnText,
+            cursor: restartingWatcher ? 'wait' : 'pointer',
+            fontFamily: 'inherit',
+            transition: 'all 0.15s',
+          }}
+        >
+          <svg
+            width="14"
+            height="14"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            style={{
+              animation: restartingWatcher ? 'spin 0.9s linear infinite' : undefined,
+              transformOrigin: 'center',
+            }}
+          >
+            <polyline points="23 4 23 10 17 10" />
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+          </svg>
+        </button>
+        <button
+          onClick={toggleWatcher}
+          disabled={togglingWatcher || restartingWatcher || watcherRunning === null}
+          style={{
+            padding: '7px 16px',
+            border: `1px solid ${watcherRunning ? theme.blockBtnBorder : theme.unblockBtnBorder}`,
+            borderRadius: 7,
+            background: watcherRunning ? theme.blockBtn : theme.unblockBtn,
+            color: watcherRunning ? theme.blockBtnText : theme.unblockBtnText,
+            fontSize: 12,
+            fontWeight: 600,
+            cursor: togglingWatcher ? 'wait' : 'pointer',
+            fontFamily: 'inherit',
+            transition: 'all 0.15s',
+            minWidth: 80,
+          }}
+        >
+          {togglingWatcher ? '…' : watcherRunning ? 'Stop' : 'Start'}
+        </button>
+      </div>
+      </div>
+
       {/* ─── Automation ─── */}
       <div style={{ ...sectionLabel, marginTop: 14 }}>Automation</div>
 
+      <div style={grid2Col}>
       <div style={rowCard}>
         <div style={iconBox(!!autoStart)}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -239,7 +370,7 @@ function Configurations() {
             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
           </svg>
         </div>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: theme.heading }}>Auto-Start on Boot</div>
           <div style={{ fontSize: 11, color: theme.textSecondary, marginTop: 1 }}>
             Start services when system boots ·{' '}
@@ -258,7 +389,7 @@ function Configurations() {
             <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
           </svg>
         </div>
-        <div style={{ flex: 1 }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 600, color: theme.heading }}>Automatic Blocking</div>
           <div style={{ fontSize: 11, color: theme.textSecondary, marginTop: 1 }}>
             Block IPs past session threshold ·{' '}
@@ -269,14 +400,15 @@ function Configurations() {
         </div>
         <Toggle on={autoBlock} onClick={toggleAutoBlock} disabled={togglingAutoBlock || autoBlock === null} />
       </div>
+      </div>
 
       {/* ─── Themes ─── */}
       {(() => {
-        const allThemes = Object.values(themes)
-        const darkThemes = allThemes.filter(t => t.kind === 'dark')
-        const lightThemes = allThemes.filter(t => t.kind === 'light')
+        const allList = Object.values(allThemes).filter(t => t.name !== 'custom')
+        const darkThemes = allList.filter(t => t.kind === 'dark')
+        const lightThemes = allList.filter(t => t.kind === 'light')
 
-        const renderThemeButton = (t: typeof allThemes[number]) => {
+        const renderThemeButton = (t: typeof allList[number]) => {
           const isActive = t.name === themeName
           return (
             <button
@@ -344,9 +476,69 @@ function Configurations() {
                 {lightThemes.map(renderThemeButton)}
               </div>
             </div>
+
+            <div style={{ ...sectionLabel, marginTop: 14 }}>Custom Theme</div>
+            <div style={groupCard}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  flexWrap: 'wrap',
+                  gap: 10,
+                  justifyContent: 'space-between',
+                }}
+              >
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                  {customTheme ? (
+                    renderThemeButton(customTheme)
+                  ) : (
+                    <span style={{ fontSize: 12, color: theme.textSecondary }}>
+                      You haven't created a custom theme yet.
+                    </span>
+                  )}
+                </div>
+                <button
+                  onClick={() => setCustomizeOpen(true)}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    border: `1px solid ${theme.brand}55`,
+                    background: `${theme.brand}12`,
+                    color: theme.brand,
+                    fontSize: 12,
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    fontFamily: 'inherit',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <svg
+                    width="14"
+                    height="14"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M12 19l7-7 3 3-7 7-3-3z" />
+                    <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z" />
+                    <path d="M2 2l7.586 7.586" />
+                    <circle cx="11" cy="11" r="2" />
+                  </svg>
+                  {customTheme ? 'Edit custom theme' : 'Create custom theme'}
+                </button>
+              </div>
+            </div>
           </>
         )
       })()}
+
+      <CustomThemeModal open={customizeOpen} onClose={() => setCustomizeOpen(false)} />
     </div>
   )
 }
