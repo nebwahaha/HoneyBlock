@@ -212,7 +212,7 @@ function Blocking() {
               {autoBlockEnabled ? 'Auto-blocking is ON' : 'Auto-blocking is OFF'}
             </span>
             {!autoBlockEnabled && (
-              <span style={{ color: theme.textSecondary }}> — enable it in Configurations.</span>
+              <span style={{ color: theme.textSecondary }}> ---enable it in Configurations.</span>
             )}
           </p>
         </div>

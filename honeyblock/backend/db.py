@@ -154,6 +154,13 @@ def get_stats(time_range: str | None = None) -> dict:
             time_params,
         ).fetchall()
 
+        top_commands = conn.execute(
+            f"SELECT command_used as command, COUNT(*) as count FROM attacker_session "
+            f"WHERE command_used IS NOT NULL AND TRIM(command_used) != '' {time_filter} "
+            "GROUP BY command_used ORDER BY count DESC",
+            time_params,
+        ).fetchall()
+
         protocol_counts = conn.execute(
             f"SELECT protocol, COUNT(*) as count FROM attacker_session WHERE protocol IS NOT NULL {time_filter} "
             "GROUP BY protocol ORDER BY count DESC",
@@ -187,6 +194,7 @@ def get_stats(time_range: str | None = None) -> dict:
             "top_ips": [dict(r) for r in top_ips],
             "top_usernames": [dict(r) for r in top_usernames],
             "top_passwords": [dict(r) for r in top_passwords],
+            "top_commands": [dict(r) for r in top_commands],
             "protocol_counts": [dict(r) for r in protocol_counts],
             "hourly_histogram": [dict(r) for r in hourly_rows],
         }

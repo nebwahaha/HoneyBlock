@@ -21,31 +21,54 @@ interface ActivityResponse {
 interface Props {
   ip: string | null
   onClose: () => void
+  /** when true, refetch every 3s while the modal is open */
+  live?: boolean
+  /** when set, render a "Block IP" button in the header that calls this with the IP */
+  onBlock?: (ip: string) => Promise<void> | void
 }
 
-function AttackerActivityModal({ ip, onClose }: Props) {
+function AttackerActivityModal({ ip, onClose, live, onBlock }: Props) {
   const { theme } = useTheme()
   const [data, setData] = useState<ActivityResponse | null>(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [blocking, setBlocking] = useState(false)
 
-  // Fetch on open
+  // Fetch on open (and poll if live)
   useEffect(() => {
     if (!ip) return
     let cancelled = false
-    setData(null)
-    setError(null)
-    setLoading(true)
-    fetch(`/api/attacker/${encodeURIComponent(ip)}/activity?limit=300`)
-      .then(r => {
-        if (!r.ok) throw new Error(`Status ${r.status}`)
-        return r.json()
-      })
-      .then((json: ActivityResponse) => { if (!cancelled) setData(json) })
-      .catch(err => { if (!cancelled) setError(String(err.message ?? err)) })
-      .finally(() => { if (!cancelled) setLoading(false) })
-    return () => { cancelled = true }
-  }, [ip])
+    const fetchOnce = (initial: boolean) => {
+      if (initial) {
+        setData(null)
+        setError(null)
+        setLoading(true)
+      }
+      fetch(`/api/attacker/${encodeURIComponent(ip)}/activity?limit=300`)
+        .then(r => {
+          if (!r.ok) throw new Error(`Status ${r.status}`)
+          return r.json()
+        })
+        .then((json: ActivityResponse) => { if (!cancelled) setData(json) })
+        .catch(err => { if (!cancelled && initial) setError(String(err.message ?? err)) })
+        .finally(() => { if (!cancelled && initial) setLoading(false) })
+    }
+    fetchOnce(true)
+    let interval: number | undefined
+    if (live) {
+      interval = window.setInterval(() => fetchOnce(false), 3000)
+    }
+    return () => {
+      cancelled = true
+      if (interval !== undefined) clearInterval(interval)
+    }
+  }, [ip, live])
+
+  const handleBlock = async () => {
+    if (!ip || !onBlock) return
+    setBlocking(true)
+    try { await onBlock(ip) } finally { setBlocking(false) }
+  }
 
   // ESC closes
   useEffect(() => {
@@ -153,13 +176,46 @@ function AttackerActivityModal({ ip, onClose }: Props) {
               >
                 {ip}
               </div>
-              <div style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2 }}>
-                {data?.country ? `${data.country} · ` : ''}
-                {loading ? 'Loading…' : `${rows.length} events`}
-                {protocols.length > 0 && ` · ${protocols.join(', ')}`}
+              <div style={{ fontSize: 11, color: theme.textSecondary, marginTop: 2, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {live && (
+                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                    <span style={{
+                      width: 6, height: 6, borderRadius: '50%',
+                      background: theme.success,
+                      animation: 'pulse-dot 2s ease-in-out infinite',
+                    }} />
+                    <span style={{ color: theme.success, fontWeight: 600, letterSpacing: '0.5px' }}>LIVE</span>
+                    <span>·</span>
+                  </span>
+                )}
+                <span>
+                  {data?.country ? `${data.country} · ` : ''}
+                  {loading ? 'Loading…' : `${rows.length} events`}
+                  {protocols.length > 0 && ` · ${protocols.join(', ')}`}
+                </span>
               </div>
             </div>
           </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {onBlock && (
+            <button
+              onClick={handleBlock}
+              disabled={blocking}
+              style={{
+                background: theme.blockBtn,
+                color: theme.blockBtnText,
+                border: `1px solid ${theme.blockBtnBorder}`,
+                borderRadius: 6,
+                padding: '6px 12px',
+                fontSize: 12,
+                fontWeight: 600,
+                cursor: blocking ? 'wait' : 'pointer',
+                opacity: blocking ? 0.6 : 1,
+              }}
+            >
+              {blocking ? 'Blocking…' : 'Block IP'}
+            </button>
+          )}
           <button
             onClick={onClose}
             aria-label="Close"
@@ -175,6 +231,7 @@ function AttackerActivityModal({ ip, onClose }: Props) {
           >
             ×
           </button>
+          </div>
         </div>
 
         {/* Body */}
@@ -279,11 +336,12 @@ function AttackerActivityModal({ ip, onClose }: Props) {
                       background: theme.feedBg,
                       border: `1px solid ${theme.feedBorder}`,
                       borderRadius: 8,
-                      overflow: 'hidden',
+                      maxHeight: 240,
+                      overflowY: 'auto',
                     }}
                   >
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-                      <thead>
+                      <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                         <tr>
                           <th style={thStyle(theme)}>Username</th>
                           <th style={thStyle(theme)}>Password</th>
@@ -291,7 +349,7 @@ function AttackerActivityModal({ ip, onClose }: Props) {
                         </tr>
                       </thead>
                       <tbody>
-                        {credentials.slice(0, 50).map((c, i) => (
+                        {credentials.map((c, i) => (
                           <tr
                             key={i}
                             style={{ background: i % 2 === 0 ? theme.tableRowEven : theme.tableRowOdd }}
@@ -327,19 +385,6 @@ function AttackerActivityModal({ ip, onClose }: Props) {
                         ))}
                       </tbody>
                     </table>
-                    {credentials.length > 50 && (
-                      <div
-                        style={{
-                          padding: '6px 12px',
-                          fontSize: 11,
-                          color: theme.textTertiary,
-                          borderTop: `1px solid ${theme.feedBorder}`,
-                          textAlign: 'center',
-                        }}
-                      >
-                        Showing 50 of {credentials.length}
-                      </div>
-                    )}
                   </div>
                 </Section>
               )}

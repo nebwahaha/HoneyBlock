@@ -11,6 +11,7 @@ import CountryPieChart from '../components/CountryPieChart'
 import StatCardPopup from '../components/StatCardPopup'
 import ProtocolChart from '../components/ProtocolChart'
 import EventsHistogram from '../components/EventsHistogram'
+import NotificationBell from '../components/NotificationBell'
 const REFRESH_SKELETON_MS = 1500
 
 function DashboardSkeleton() {
@@ -141,9 +142,12 @@ function Dashboard() {
   const [refreshing, setRefreshing] = useState(false)
   const [lastUpdated, setLastUpdated] = useState<string>('')
   const [selectedAttackerIp, setSelectedAttackerIp] = useState<string | null>(null)
+  const [selectedLiveIp, setSelectedLiveIp] = useState<string | null>(null)
+  const [selectedCountry, setSelectedCountry] = useState<string | null>(null)
   const [liveFeedOpen, setLiveFeedOpen] = useState(false)
   const [showProtocol, setShowProtocol] = useState(false)
-  const [showHistogram, setShowHistogram] = useState(false)
+  const [showCountries, setShowCountries] = useState(false)
+  const [showPasswords, setShowPasswords] = useState(false)
   const [logCount, setLogCount] = useState(0)
   const [seenLogCount, setSeenLogCount] = useState(0)
   const [timeRange, setTimeRange] = useState<string>('all')
@@ -286,6 +290,53 @@ function Dashboard() {
     color: theme.textPrimary,
     fontSize: 12,
     borderBottom: `1px solid ${theme.cardBorder}`,
+  }
+
+  const renderTopList = (
+    entries: Array<{ value: string; count: number }>,
+    accent: string,
+  ) => {
+    if (entries.length === 0) {
+      return (
+        <div style={{ padding: '16px 12px', color: theme.textSecondary, fontSize: 13, textAlign: 'center' }}>
+          No data yet.
+        </div>
+      )
+    }
+    const max = entries[0]?.count || 1
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        {entries.map((e, i) => {
+          const pct = Math.max(2, (e.count / max) * 100)
+          return (
+            <div key={i} style={{ position: 'relative', padding: '7px 10px', borderRadius: 6, overflow: 'hidden' }}>
+              <div style={{
+                position: 'absolute', top: 0, bottom: 0, left: 0,
+                width: `${pct}%`,
+                background: `${accent}1c`,
+                borderLeft: `2px solid ${accent}`,
+                borderRadius: 4,
+                pointerEvents: 'none',
+              }} />
+              <div style={{ position: 'relative', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{
+                  flex: 1, color: theme.textPrimary, fontSize: 13,
+                  fontFamily: "'JetBrains Mono', monospace",
+                  whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                }}>
+                  {e.value || <span style={{ color: theme.textTertiary, fontStyle: 'italic' }}>(empty)</span>}
+                </span>
+                <span style={{
+                  color: accent, fontSize: 11, fontWeight: 700,
+                  fontVariantNumeric: 'tabular-nums',
+                  background: `${accent}15`, padding: '2px 8px', borderRadius: 10,
+                }}>{e.count.toLocaleString()}</span>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    )
   }
 
   if (loading || refreshing) {
@@ -449,6 +500,7 @@ function Dashboard() {
               />
             )}
           </button>
+          <NotificationBell />
         </div>
       </div>
 
@@ -456,16 +508,16 @@ function Dashboard() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 12 }}>
         <StatCard
           icon={
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" /></svg>
           }
-          label="Total Attacks"
+          label="Total Sessions"
           value={stats?.total_attempts ?? 0}
           color={theme.error}
           delay={0}
         />
         <StatCardPopup
           icon={
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3" /><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3" /><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5" /></svg>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
           }
           label="Unique IPs"
           value={stats?.unique_ips ?? 0}
@@ -483,6 +535,7 @@ function Dashboard() {
               hasMore: (page * 50) < json.total,
             }
           }}
+          onRowClick={setSelectedAttackerIp}
         />
         <StatCardPopup
           icon={
@@ -525,11 +578,12 @@ function Dashboard() {
               hasMore: false,
             }
           }}
+          onRowClick={setSelectedLiveIp}
         />
       </div>
 
       {/* Charts row — toggleable */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, marginBottom: 0, flex: 1, minHeight: 0 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 0, flex: 1, minHeight: 0 }}>
         <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <h3 style={{ ...h3Style, marginBottom: 0 }}>
@@ -559,13 +613,13 @@ function Dashboard() {
           </div>
         </div>
 
-        <div style={{ ...cardStyle, gridColumn: 'span 2', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div style={{ ...cardStyle, gridColumn: 'span 3', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <h3 style={{ ...h3Style, marginBottom: 0 }}>
-              {showHistogram ? 'Honeypot Events Histogram' : 'General Location of Attacks'}
+              {showCountries ? 'Countries' : 'General Location of Attacks'}
             </h3>
             <button
-              onClick={() => setShowHistogram(!showHistogram)}
+              onClick={() => setShowCountries(!showCountries)}
               style={{
                 background: theme.btnBg,
                 border: `1px solid ${theme.btnBorder}`,
@@ -577,69 +631,70 @@ function Dashboard() {
                 cursor: 'pointer',
               }}
             >
-              {showHistogram ? 'Map' : 'Histogram'}
+              {showCountries ? 'Map' : 'Countries'}
             </button>
           </div>
           <div style={{ flex: 1, minHeight: 0 }}>
-            {showHistogram
-              ? <EventsHistogram data={stats?.hourly_histogram ?? []} />
-              : <AttackMap attackers={attackers} />
+            {showCountries
+              ? <CountryPieChart attackers={attackers} />
+              : <AttackMap attackers={attackers} onCountryClick={setSelectedCountry} />
             }
           </div>
         </div>
       </div>
 
-      {/* Top usernames, passwords & country pie chart */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10, flex: 1, minHeight: 0 }}>
-        <div style={{ ...cardStyle, overflow: 'auto' }}>
-          <h3 style={h3Style}>Cowrie Top 10 Usernames</h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: `1px solid ${theme.cardBorder}` }}>
-                <th style={{ ...thStyle, textAlign: 'left' }}>Usernames</th>
-                <th style={{ ...thStyle, textAlign: 'right' }}>Count</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(stats?.top_usernames ?? []).map((entry, i) => (
-                <tr key={i} style={{ borderBottom: `1px solid ${theme.cardBorder}` }}>
-                  <td style={tdStyle}>{entry.username_attempt}</td>
-                  <td style={{ ...tdStyle, textAlign: 'right' }}>{entry.count}</td>
-                </tr>
-              ))}
-              {(stats?.top_usernames ?? []).length === 0 && (
-                <tr><td colSpan={2} style={{ padding: '16px 12px', color: theme.textSecondary, fontSize: 13, textAlign: 'center' }}>No data yet.</td></tr>
-              )}
-            </tbody>
-          </table>
+      {/* Top creds, histogram & top commands */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 10, flex: 1, minHeight: 0 }}>
+        <div style={{ ...cardStyle, gridColumn: 'span 2', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <h3 style={{ ...h3Style, marginBottom: 0 }}>
+              {showPasswords ? 'Cowrie Top 10 Passwords' : 'Cowrie Top 10 Usernames'}
+            </h3>
+            <button
+              onClick={() => setShowPasswords(!showPasswords)}
+              style={{
+                background: theme.btnBg,
+                border: `1px solid ${theme.btnBorder}`,
+                borderRadius: 6,
+                padding: '4px 10px',
+                color: theme.btnText,
+                fontSize: 11,
+                fontWeight: 600,
+                cursor: 'pointer',
+              }}
+            >
+              {showPasswords ? 'Usernames' : 'Passwords'}
+            </button>
+          </div>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+            {showPasswords
+              ? renderTopList(
+                  (stats?.top_passwords ?? []).map(e => ({ value: e.password_attempt, count: e.count })),
+                  theme.brand,
+                )
+              : renderTopList(
+                  (stats?.top_usernames ?? []).map(e => ({ value: e.username_attempt, count: e.count })),
+                  theme.brand,
+                )
+            }
+          </div>
         </div>
 
-        <div style={{ ...cardStyle, overflow: 'auto' }}>
-          <h3 style={h3Style}>Cowrie Top 10 Passwords</h3>
-          <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: `1px solid ${theme.cardBorder}` }}>
-                <th style={{ ...thStyle, textAlign: 'left' }}>Top 10 Passwords</th>
-                <th style={{ ...thStyle, textAlign: 'right' }}>Count</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(stats?.top_passwords ?? []).map((entry, i) => (
-                <tr key={i} style={{ borderBottom: `1px solid ${theme.cardBorder}` }}>
-                  <td style={tdStyle}>{entry.password_attempt}</td>
-                  <td style={{ ...tdStyle, textAlign: 'right' }}>{entry.count}</td>
-                </tr>
-              ))}
-              {(stats?.top_passwords ?? []).length === 0 && (
-                <tr><td colSpan={2} style={{ padding: '16px 12px', color: theme.textSecondary, fontSize: 13, textAlign: 'center' }}>No data yet.</td></tr>
-              )}
-            </tbody>
-          </table>
+        <div style={{ ...cardStyle, gridColumn: 'span 3', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <h3 style={h3Style}>Honeypot Events Histogram</h3>
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <EventsHistogram data={stats?.hourly_histogram ?? []} />
+          </div>
         </div>
 
-        <div style={{ ...cardStyle, overflow: 'auto' }}>
-          <h3 style={h3Style}>Countries</h3>
-          <CountryPieChart attackers={attackers} />
+        <div style={{ ...cardStyle, gridColumn: 'span 3', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+          <h3 style={h3Style}>Most Common Commands Executed</h3>
+          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
+            {renderTopList(
+              (stats?.top_commands ?? []).map(e => ({ value: e.command, count: e.count })),
+              theme.brand,
+            )}
+          </div>
         </div>
       </div>
 
@@ -652,7 +707,7 @@ function Dashboard() {
           style={{
             position: 'fixed',
             bottom: 0,
-            left: 200,
+            left: 176,
             right: 0,
             zIndex: 1000,
             pointerEvents: liveFeedOpen ? 'auto' : 'none',
@@ -740,6 +795,106 @@ function Dashboard() {
         ip={selectedAttackerIp}
         onClose={() => setSelectedAttackerIp(null)}
       />
+
+      {/* Live session popup, opened from the Active Sessions stat card */}
+      <AttackerActivityModal
+        ip={selectedLiveIp}
+        onClose={() => setSelectedLiveIp(null)}
+        live
+        onBlock={async (ip) => {
+          const res = await fetch('/api/block', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ ip }),
+          })
+          if (res.ok) {
+            setSelectedLiveIp(null)
+            fetchData()
+          }
+        }}
+      />
+
+      {/* Country drill-down — opened from a map marker click */}
+      {selectedCountry && createPortal(
+        <div
+          onClick={() => setSelectedCountry(null)}
+          style={{
+            position: 'fixed', inset: 0,
+            background: theme.modalOverlay,
+            zIndex: 1000,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{
+              background: theme.cardBg,
+              border: `1px solid ${theme.tooltipBorder}`,
+              borderRadius: 12,
+              width: 460,
+              maxHeight: '70vh',
+              display: 'flex', flexDirection: 'column',
+              boxShadow: `0 16px 48px ${theme.modalOverlay}`,
+            }}
+          >
+            <div style={{
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+              padding: '16px 20px', borderBottom: `1px solid ${theme.cardBorder}`,
+            }}>
+              <span style={{ color: theme.heading, fontSize: 15, fontWeight: 600 }}>
+                Attackers from {selectedCountry}
+              </span>
+              <button
+                onClick={() => setSelectedCountry(null)}
+                style={{
+                  background: 'none', border: 'none', color: theme.textSecondary,
+                  fontSize: 18, cursor: 'pointer', lineHeight: 1, padding: '0 4px',
+                }}
+              >✕</button>
+            </div>
+            <div style={{ overflowY: 'auto', flex: 1 }}>
+              {(() => {
+                const list = attackers.filter(a => a.country === selectedCountry)
+                if (list.length === 0) {
+                  return (
+                    <div style={{ color: theme.textSecondary, fontSize: 13, padding: 24, textAlign: 'center' }}>
+                      No attackers from this country.
+                    </div>
+                  )
+                }
+                return list.map((a, i) => (
+                  <button
+                    key={a.ip}
+                    onClick={() => {
+                      setSelectedAttackerIp(a.ip)
+                      setSelectedCountry(null)
+                    }}
+                    style={{
+                      width: '100%',
+                      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                      padding: '10px 20px',
+                      borderBottom: i < list.length - 1 ? `1px solid ${theme.cardBorder}` : 'none',
+                      background: 'transparent', border: 'none', cursor: 'pointer',
+                      textAlign: 'left',
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = theme.cardHoverBg)}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                  >
+                    <span style={{
+                      color: theme.textPrimary, fontSize: 13,
+                      fontFamily: "'JetBrains Mono', monospace",
+                    }}>{a.ip}</span>
+                    <span style={{ color: theme.textTertiary, fontSize: 11 }}>
+                      last seen {new Date(a.last_detected).toLocaleString()}
+                    </span>
+                  </button>
+                ))
+              })()}
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
     </div>
   )
 }

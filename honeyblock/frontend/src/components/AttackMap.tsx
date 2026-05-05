@@ -94,9 +94,10 @@ const COUNTRY_COORDS: Record<string, [number, number]> = {
 
 interface Props {
   attackers: Attacker[]
+  onCountryClick?: (country: string) => void
 }
 
-function AttackMap({ attackers }: Props) {
+function AttackMap({ attackers, onCountryClick }: Props) {
   const { theme } = useTheme()
   const [zoom, setZoom] = useState(1.8)
   const [center, setCenter] = useState<[number, number]>([40, 25])
@@ -211,6 +212,7 @@ function AttackMap({ attackers }: Props) {
                   }
                 }}
                 onMouseLeave={() => setTooltip(null)}
+                onClick={() => onCountryClick?.(m.country)}
               />
             </Marker>
           ))}

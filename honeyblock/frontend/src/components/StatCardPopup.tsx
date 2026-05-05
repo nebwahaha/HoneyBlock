@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { useTheme } from '../theme'
 
 interface PopupRow {
@@ -15,9 +16,11 @@ interface Props {
   /** kept for backwards-compat with callers; no longer used */
   delay?: number
   fetchRows: (page: number) => Promise<{ rows: PopupRow[]; hasMore: boolean }>
+  /** when provided, each row is clickable; fires with the row's primary value */
+  onRowClick?: (primary: string) => void
 }
 
-function StatCardPopup({ icon, label, value, color, fetchRows }: Props) {
+function StatCardPopup({ icon, label, value, color, fetchRows, onRowClick }: Props) {
   const { theme } = useTheme()
   const [hovered, setHovered] = useState(false)
   const [open, setOpen] = useState(false)
@@ -106,8 +109,9 @@ function StatCardPopup({ icon, label, value, color, fetchRows }: Props) {
         </div>
       </div>
 
-      {/* Modal */}
-      {open && (
+      {/* Modal — portaled to <body> so position:fixed isn't trapped by the
+          page-transition transform in App.tsx */}
+      {open && createPortal(
         <div
           onClick={handleClose}
           style={{
@@ -157,17 +161,43 @@ function StatCardPopup({ icon, label, value, color, fetchRows }: Props) {
                   No data.
                 </div>
               )}
-              {rows.map((r, i) => (
-                <div key={i} style={{
+              {rows.map((r, i) => {
+                const baseStyle: React.CSSProperties = {
+                  width: '100%',
                   display: 'flex', justifyContent: 'space-between', alignItems: 'center',
                   padding: '10px 20px', borderBottom: `1px solid ${theme.cardBorder}`,
-                }}>
-                  <span style={{ color: theme.textPrimary, fontSize: 13, fontFamily: "'JetBrains Mono', monospace" }}>{r.primary}</span>
-                  {r.secondary && (
-                    <span style={{ color: accent, fontSize: 12, fontWeight: 600 }}>{r.secondary}</span>
-                  )}
-                </div>
-              ))}
+                  background: 'transparent', border: 'none', textAlign: 'left',
+                }
+                const inner = (
+                  <>
+                    <span style={{ color: theme.textPrimary, fontSize: 13, fontFamily: "'JetBrains Mono', monospace" }}>{r.primary}</span>
+                    {r.secondary && (
+                      <span style={{ color: accent, fontSize: 12, fontWeight: 600 }}>{r.secondary}</span>
+                    )}
+                  </>
+                )
+                if (onRowClick) {
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => {
+                        onRowClick(r.primary)
+                        setOpen(false)
+                      }}
+                      style={{ ...baseStyle, cursor: 'pointer' }}
+                      onMouseEnter={e => (e.currentTarget.style.background = theme.cardHoverBg)}
+                      onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                    >
+                      {inner}
+                    </button>
+                  )
+                }
+                return (
+                  <div key={i} style={baseStyle}>
+                    {inner}
+                  </div>
+                )
+              })}
               {loading && (
                 <div style={{ color: theme.textSecondary, fontSize: 13, padding: 16, textAlign: 'center' }}>
                   Loading...
@@ -191,7 +221,8 @@ function StatCardPopup({ icon, label, value, color, fetchRows }: Props) {
               </div>
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </>
   )

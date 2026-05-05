@@ -59,7 +59,7 @@ function Sidebar() {
   return (
     <aside
       style={{
-        width: 200,
+        width: 180,
         height: '100vh',
         position: 'sticky',
         top: 0,
@@ -119,7 +119,7 @@ function Sidebar() {
             animation: 'pulse-dot 2s ease-in-out infinite',
           }}
         />
-        <span style={{ fontSize: 11, color: theme.textSecondary, fontFamily: "'JetBrains Mono', 'Consolas', monospace" }}>
+        <span style={{ fontSize: 10, color: theme.textSecondary, fontFamily: "'JetBrains Mono', 'Consolas', monospace", whiteSpace: 'nowrap' }}>
           Live · localhost:5000
         </span>
       </div>

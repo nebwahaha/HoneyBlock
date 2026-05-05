@@ -5,7 +5,6 @@ import Sidebar from './components/Sidebar'
 import Dashboard from './pages/Dashboard'
 import Blocking from './pages/Blocking'
 import Configurations from './pages/Configurations'
-import NotificationBell from './components/NotificationBell'
 
 const PAGE_LABELS: Record<string, string> = {
   '/': 'Dashboard',
@@ -39,7 +38,7 @@ function Skeleton() {
       {/* Sidebar skeleton */}
       <div
         style={{
-          width: 200,
+          width: 176,
           height: '100vh',
           background: theme.sidebarBg,
           borderRight: `1px solid ${theme.sidebarBorder}`,
@@ -426,7 +425,6 @@ function App() {
                 </span>
               </div>
             ))}
-            <NotificationBell />
           </div>
         </div>
 
