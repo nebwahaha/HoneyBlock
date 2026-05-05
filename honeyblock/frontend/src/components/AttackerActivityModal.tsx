@@ -80,11 +80,21 @@ function AttackerActivityModal({ ip, onClose, live, onBlock }: Props) {
 
   if (!ip) return null
 
-  // Group rows by event type and pull out commands separately
+  // Group rows by event type and pull out commands separately.
+  // Cowrie emits some login/command events twice with identical timestamps,
+  // so dedupe by (value, ts) — legitimate repeats at different times stay.
   const rows = data?.data ?? []
+  const seenCmd = new Set<string>()
   const commands = rows
     .filter(r => r.command_used)
     .map(r => ({ command: r.command_used as string, ts: r.timestamp }))
+    .filter(c => {
+      const key = `${c.command}|${c.ts}`
+      if (seenCmd.has(key)) return false
+      seenCmd.add(key)
+      return true
+    })
+  const seenCred = new Set<string>()
   const credentials = rows
     .filter(r => r.username_attempt || r.password_attempt)
     .map(r => ({
@@ -92,6 +102,12 @@ function AttackerActivityModal({ ip, onClose, live, onBlock }: Props) {
       pass: r.password_attempt ?? '',
       ts: r.timestamp,
     }))
+    .filter(c => {
+      const key = `${c.user}|${c.pass}|${c.ts}`
+      if (seenCred.has(key)) return false
+      seenCred.add(key)
+      return true
+    })
   const eventCounts: Record<string, number> = {}
   for (const r of rows) {
     if (r.event_type) eventCounts[r.event_type] = (eventCounts[r.event_type] ?? 0) + 1

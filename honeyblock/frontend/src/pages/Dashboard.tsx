@@ -14,6 +14,63 @@ import EventsHistogram from '../components/EventsHistogram'
 import NotificationBell from '../components/NotificationBell'
 const REFRESH_SKELETON_MS = 1500
 
+// Match App.tsx's page-slide easing/duration so card swaps feel like the same animation.
+const SLIDE_MS = 360
+const SLIDE_EASING = 'cubic-bezier(0.32, 0.72, 0, 1)'
+
+/**
+ * SlideSwap — same single-track pattern as App.tsx's PageStack, scoped to
+ * a card. Both panels are mounted side-by-side and the track translates as
+ * one element so the GPU composites the slide. Lazy-mount: a panel isn't
+ * created until its first activation.
+ */
+function SlideSwap({
+  active,
+  panels,
+}: {
+  active: number
+  panels: Array<{ key: string; render: () => React.ReactNode; scroll?: boolean }>
+}) {
+  const [visited, setVisited] = useState<Set<string>>(() => new Set([panels[active].key]))
+  if (!visited.has(panels[active].key)) {
+    setVisited(prev => new Set([...prev, panels[active].key]))
+  }
+  const N = panels.length
+  const trackTranslate = -(active * 100) / N
+  return (
+    <div style={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+      <div
+        style={{
+          display: 'flex',
+          width: `${N * 100}%`,
+          height: '100%',
+          transform: `translate3d(${trackTranslate}%, 0, 0)`,
+          transition: `transform ${SLIDE_MS}ms ${SLIDE_EASING}`,
+          willChange: 'transform',
+          backfaceVisibility: 'hidden',
+        }}
+      >
+        {panels.map((p, i) => (
+          <div
+            key={p.key}
+            aria-hidden={i !== active}
+            style={{
+              width: `${100 / N}%`,
+              height: '100%',
+              flexShrink: 0,
+              overflowY: p.scroll ? (i === active ? 'auto' : 'hidden') : 'visible',
+              overflowX: 'hidden',
+              pointerEvents: i === active ? 'auto' : 'none',
+            }}
+          >
+            {visited.has(p.key) && p.render()}
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function DashboardSkeleton() {
   const { theme } = useTheme()
   const shimmer = (w: number | string, h: number, r: number = 6, extra: React.CSSProperties = {}): React.CSSProperties => ({
@@ -606,10 +663,13 @@ function Dashboard() {
             </button>
           </div>
           <div style={{ flex: 1, minHeight: 0 }}>
-            {showProtocol
-              ? <ProtocolChart data={stats?.protocol_counts ?? []} />
-              : <TopAttackersChart data={stats?.top_ips?.slice(0, 5) ?? []} onBarClick={setSelectedAttackerIp} />
-            }
+            <SlideSwap
+              active={showProtocol ? 1 : 0}
+              panels={[
+                { key: 'top-ips', render: () => <TopAttackersChart data={stats?.top_ips?.slice(0, 5) ?? []} onBarClick={setSelectedAttackerIp} /> },
+                { key: 'protocols', render: () => <ProtocolChart data={stats?.protocol_counts ?? []} /> },
+              ]}
+            />
           </div>
         </div>
 
@@ -635,10 +695,13 @@ function Dashboard() {
             </button>
           </div>
           <div style={{ flex: 1, minHeight: 0 }}>
-            {showCountries
-              ? <CountryPieChart attackers={attackers} />
-              : <AttackMap attackers={attackers} onCountryClick={setSelectedCountry} />
-            }
+            <SlideSwap
+              active={showCountries ? 1 : 0}
+              panels={[
+                { key: 'map', render: () => <AttackMap attackers={attackers} onCountryClick={setSelectedCountry} /> },
+                { key: 'countries', render: () => <CountryPieChart attackers={attackers} /> },
+              ]}
+            />
           </div>
         </div>
       </div>
@@ -666,17 +729,28 @@ function Dashboard() {
               {showPasswords ? 'Usernames' : 'Passwords'}
             </button>
           </div>
-          <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
-            {showPasswords
-              ? renderTopList(
-                  (stats?.top_passwords ?? []).map(e => ({ value: e.password_attempt, count: e.count })),
-                  theme.brand,
-                )
-              : renderTopList(
-                  (stats?.top_usernames ?? []).map(e => ({ value: e.username_attempt, count: e.count })),
-                  theme.brand,
-                )
-            }
+          <div style={{ flex: 1, minHeight: 0 }}>
+            <SlideSwap
+              active={showPasswords ? 1 : 0}
+              panels={[
+                {
+                  key: 'usernames',
+                  scroll: true,
+                  render: () => renderTopList(
+                    (stats?.top_usernames ?? []).map(e => ({ value: e.username_attempt, count: e.count })),
+                    theme.brand,
+                  ),
+                },
+                {
+                  key: 'passwords',
+                  scroll: true,
+                  render: () => renderTopList(
+                    (stats?.top_passwords ?? []).map(e => ({ value: e.password_attempt, count: e.count })),
+                    theme.brand,
+                  ),
+                },
+              ]}
+            />
           </div>
         </div>
 
@@ -688,7 +762,7 @@ function Dashboard() {
         </div>
 
         <div style={{ ...cardStyle, gridColumn: 'span 3', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
-          <h3 style={h3Style}>Most Common Commands Executed</h3>
+          <h3 style={h3Style}>Common Commands Executed</h3>
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
             {renderTopList(
               (stats?.top_commands ?? []).map(e => ({ value: e.command, count: e.count })),

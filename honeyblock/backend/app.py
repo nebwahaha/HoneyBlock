@@ -81,7 +81,12 @@ def stats():
     cutoff = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
     with db.get_connection() as conn:
         last_24h = conn.execute(
-            "SELECT COUNT(*) FROM attacker_session WHERE timestamp >= ?", (cutoff,)
+            "SELECT COUNT(*) FROM ("
+            "  SELECT DISTINCT ip, event_type, timestamp, command_used, "
+            "  username_attempt, password_attempt FROM attacker_session "
+            "  WHERE timestamp >= ?"
+            ")",
+            (cutoff,),
         ).fetchone()[0]
 
     info["attempts_last_24h"] = last_24h

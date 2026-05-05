@@ -128,9 +128,18 @@ def get_stats(time_range: str | None = None) -> dict:
     time_filter = "AND timestamp >= ?" if cutoff else ""
     time_params: tuple = (cutoff,) if cutoff else ()
 
+    # Dedupe expression: the natural event key. Cowrie emits some events twice
+    # with identical timestamps, so any COUNT(*) over attacker_session is
+    # inflated. Wrapping the source in this DISTINCT collapses those.
+    deduped_source = (
+        "(SELECT DISTINCT ip, event_type, timestamp, command_used, "
+        "username_attempt, password_attempt, protocol FROM attacker_session "
+        f"WHERE 1=1 {time_filter})"
+    )
+
     with get_connection() as conn:
         total = conn.execute(
-            f"SELECT COUNT(*) FROM attacker_session WHERE 1=1 {time_filter}", time_params
+            f"SELECT COUNT(*) FROM {deduped_source}", time_params
         ).fetchone()[0]
         unique_ips = conn.execute(
             f"SELECT COUNT(DISTINCT ip) FROM attacker_session WHERE 1=1 {time_filter}", time_params
@@ -138,32 +147,40 @@ def get_stats(time_range: str | None = None) -> dict:
         blocked = conn.execute("SELECT COUNT(*) FROM attacker WHERE is_blocked = 'Blocked'").fetchone()[0]
 
         top_ips = conn.execute(
-            f"SELECT ip, COUNT(*) as count FROM attacker_session WHERE 1=1 {time_filter} GROUP BY ip ORDER BY count DESC LIMIT 10",
+            f"SELECT ip, COUNT(*) as count FROM {deduped_source} GROUP BY ip ORDER BY count DESC LIMIT 10",
             time_params,
         ).fetchall()
 
+        # Cowrie emits some events twice with identical timestamps; dedupe on
+        # (value, timestamp) before counting so the dashboard matches the
+        # per-IP modal (which dedupes the same way).
         top_usernames = conn.execute(
-            f"SELECT username_attempt, COUNT(*) as count FROM attacker_session WHERE username_attempt IS NOT NULL {time_filter} "
-            "GROUP BY username_attempt ORDER BY count DESC LIMIT 10",
+            f"SELECT username_attempt, COUNT(*) as count FROM ("
+            f"  SELECT DISTINCT username_attempt, timestamp FROM attacker_session "
+            f"  WHERE username_attempt IS NOT NULL {time_filter}"
+            f") GROUP BY username_attempt ORDER BY count DESC LIMIT 10",
             time_params,
         ).fetchall()
 
         top_passwords = conn.execute(
-            f"SELECT password_attempt, COUNT(*) as count FROM attacker_session WHERE password_attempt IS NOT NULL {time_filter} "
-            "GROUP BY password_attempt ORDER BY count DESC LIMIT 10",
+            f"SELECT password_attempt, COUNT(*) as count FROM ("
+            f"  SELECT DISTINCT password_attempt, timestamp FROM attacker_session "
+            f"  WHERE password_attempt IS NOT NULL {time_filter}"
+            f") GROUP BY password_attempt ORDER BY count DESC LIMIT 10",
             time_params,
         ).fetchall()
 
         top_commands = conn.execute(
-            f"SELECT command_used as command, COUNT(*) as count FROM attacker_session "
-            f"WHERE command_used IS NOT NULL AND TRIM(command_used) != '' {time_filter} "
-            "GROUP BY command_used ORDER BY count DESC",
+            f"SELECT command_used as command, COUNT(*) as count FROM ("
+            f"  SELECT DISTINCT command_used, timestamp FROM attacker_session "
+            f"  WHERE command_used IS NOT NULL AND TRIM(command_used) != '' {time_filter}"
+            f") GROUP BY command_used ORDER BY count DESC",
             time_params,
         ).fetchall()
 
         protocol_counts = conn.execute(
-            f"SELECT protocol, COUNT(*) as count FROM attacker_session WHERE protocol IS NOT NULL {time_filter} "
-            "GROUP BY protocol ORDER BY count DESC",
+            f"SELECT protocol, COUNT(*) as count FROM {deduped_source} "
+            "WHERE protocol IS NOT NULL GROUP BY protocol ORDER BY count DESC",
             time_params,
         ).fetchall()
 
@@ -182,7 +199,7 @@ def get_stats(time_range: str | None = None) -> dict:
         hourly_rows = conn.execute(
             f"SELECT strftime('{bucket_fmt}', timestamp) as hour, "
             f"COUNT(*) as events, COUNT(DISTINCT ip) as unique_ips "
-            f"FROM attacker_session WHERE timestamp IS NOT NULL {time_filter} "
+            f"FROM {deduped_source} WHERE timestamp IS NOT NULL "
             "GROUP BY hour ORDER BY hour",
             time_params,
         ).fetchall()
