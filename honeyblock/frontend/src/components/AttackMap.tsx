@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { ComposableMap, Geographies, Geography, Marker, ZoomableGroup } from 'react-simple-maps'
+import { geoMercator } from 'd3-geo'
 import type { Attacker } from '../types'
 import { useTheme } from '../theme'
 
@@ -97,10 +98,168 @@ interface Props {
   onCountryClick?: (country: string) => void
 }
 
+const USER_COUNTRY = 'Philippines'
+const PROJECTION = geoMercator().scale(120).translate([400, 300]).center([0, 0])
+
+interface MarkerData {
+  country: string
+  coords: [number, number]
+  count: number
+}
+
+interface Laser {
+  id: number
+  source: [number, number]
+  control: [number, number]
+  target: [number, number]
+  progress: number
+  speed: number
+  tailFrac: number
+}
+
+function bezierPoint(
+  p0: [number, number],
+  p1: [number, number],
+  p2: [number, number],
+  t: number,
+): [number, number] {
+  const u = 1 - t
+  return [
+    u * u * p0[0] + 2 * u * t * p1[0] + t * t * p2[0],
+    u * u * p0[1] + 2 * u * t * p1[1] + t * t * p2[1],
+  ]
+}
+
+function LaserLayer({ markers, zoom }: { markers: MarkerData[]; zoom: number }) {
+  const [lasers, setLasers] = useState<Laser[]>([])
+
+  const validSources = useMemo(
+    () => markers.filter((m) => m.country !== USER_COUNTRY),
+    [markers],
+  )
+
+  // Spawn lasers on a sparse, randomized cadence — max 2 concurrent.
+  useEffect(() => {
+    const userCoords = COUNTRY_COORDS[USER_COUNTRY]
+    if (!userCoords || validSources.length === 0) return
+    const target = PROJECTION(userCoords) as [number, number] | null
+    if (!target) return
+
+    let timeout: number | undefined
+    const spawn = () => {
+      setLasers((prev) => {
+        if (prev.length >= 3) return prev
+        const m = validSources[Math.floor(Math.random() * validSources.length)]
+        const source = PROJECTION(m.coords) as [number, number] | null
+        if (!source) return prev
+        const midX = (source[0] + target[0]) / 2
+        const midY = (source[1] + target[1]) / 2
+        const dx = target[0] - source[0]
+        const dy = target[1] - source[1]
+        const len = Math.sqrt(dx * dx + dy * dy) || 1
+        const perpX = -dy / len
+        const perpY = dx / len
+        const bulge = len * 0.22 * (Math.random() > 0.5 ? 1 : -1)
+        const control: [number, number] = [
+          midX + perpX * bulge,
+          midY + perpY * bulge,
+        ]
+        // Cap bolt length in SVG units so far-away attacks don't draw long streaks.
+        const tailFrac = Math.min(0.12, 22 / Math.max(len, 1))
+        return [
+          ...prev,
+          {
+            id: Date.now() + Math.random(),
+            source,
+            control,
+            target,
+            progress: 0,
+            speed: 0.7 + Math.random() * 0.3,
+            tailFrac,
+          },
+        ]
+      })
+      timeout = window.setTimeout(spawn, 900 + Math.random() * 1400)
+    }
+    timeout = window.setTimeout(spawn, 400 + Math.random() * 800)
+    return () => {
+      if (timeout !== undefined) clearTimeout(timeout)
+    }
+  }, [validSources])
+
+  // Drive bolt position with rAF; idles when no lasers are active.
+  useEffect(() => {
+    let raf = 0
+    let last = performance.now()
+    const tick = (now: number) => {
+      const dt = (now - last) / 1000
+      last = now
+      setLasers((prev) => {
+        if (prev.length === 0) return prev
+        return prev
+          .map((l) => ({ ...l, progress: l.progress + l.speed * dt }))
+          .filter((l) => l.progress < 1.15)
+      })
+      raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    return () => cancelAnimationFrame(raf)
+  }, [])
+
+  const w = 1 / Math.sqrt(zoom)
+
+  return (
+    <g style={{ pointerEvents: 'none' }}>
+      {lasers.map((l) => {
+        const headT = Math.min(l.progress, 1)
+        const tailT = Math.min(Math.max(0, l.progress - l.tailFrac), 1)
+        const head = bezierPoint(l.source, l.control, l.target, headT)
+        const tail = bezierPoint(l.source, l.control, l.target, tailT)
+        // Faint terminal fade only as the bolt fully collapses into the target.
+        const fade = tailT > 0.97 ? Math.max(0, 1 - (tailT - 0.97) * 30) : 1
+        return (
+          <g key={l.id}>
+            <line
+              x1={tail[0]}
+              y1={tail[1]}
+              x2={head[0]}
+              y2={head[1]}
+              stroke="#ff2233"
+              strokeWidth={7 * w}
+              strokeLinecap="round"
+              opacity={0.18 * fade}
+            />
+            <line
+              x1={tail[0]}
+              y1={tail[1]}
+              x2={head[0]}
+              y2={head[1]}
+              stroke="#ff5566"
+              strokeWidth={3.5 * w}
+              strokeLinecap="round"
+              opacity={0.55 * fade}
+            />
+            <line
+              x1={tail[0]}
+              y1={tail[1]}
+              x2={head[0]}
+              y2={head[1]}
+              stroke="#ffffff"
+              strokeWidth={1.2 * w}
+              strokeLinecap="round"
+              opacity={0.95 * fade}
+            />
+          </g>
+        )
+      })}
+    </g>
+  )
+}
+
 function AttackMap({ attackers, onCountryClick }: Props) {
   const { theme } = useTheme()
-  const [zoom, setZoom] = useState(1.8)
-  const [center, setCenter] = useState<[number, number]>([40, 25])
+  const [zoom, setZoom] = useState(2.5)
+  const [center, setCenter] = useState<[number, number]>([70, 20])
   const [tooltip, setTooltip] = useState<{ country: string; count: number; x: number; y: number } | null>(null)
   const mapRef = useRef<HTMLDivElement>(null)
 
@@ -139,21 +298,24 @@ function AttackMap({ attackers, onCountryClick }: Props) {
     setZoom(z)
   }
 
-  const markers = attackers
-    .filter(a => a.country && COUNTRY_COORDS[a.country])
-    .reduce<{ country: string; coords: [number, number]; count: number }[]>((acc, a) => {
-      const existing = acc.find(m => m.country === a.country)
-      if (existing) {
-        existing.count++
-      } else {
-        acc.push({
-          country: a.country!,
-          coords: COUNTRY_COORDS[a.country!],
-          count: 1,
-        })
-      }
-      return acc
-    }, [])
+  const markers = useMemo<MarkerData[]>(() =>
+    attackers
+      .filter(a => a.country && COUNTRY_COORDS[a.country])
+      .reduce<MarkerData[]>((acc, a) => {
+        const existing = acc.find(m => m.country === a.country)
+        if (existing) {
+          existing.count++
+        } else {
+          acc.push({
+            country: a.country!,
+            coords: COUNTRY_COORDS[a.country!],
+            count: 1,
+          })
+        }
+        return acc
+      }, []),
+    [attackers],
+  )
 
   return (
     <div ref={mapRef} style={{ height: '100%', position: 'relative', overflow: 'hidden' }}>
@@ -170,6 +332,14 @@ function AttackMap({ attackers, onCountryClick }: Props) {
           maxZoom={8}
           translateExtent={[[-800, -400], [800, 600]]}
         >
+          <defs>
+            <radialGradient id="attackerMarkerGrad" cx="50%" cy="50%" r="50%">
+              <stop offset="0%" stopColor={theme.mapMarker} stopOpacity="1" />
+              <stop offset="45%" stopColor={theme.mapMarker} stopOpacity="0.85" />
+              <stop offset="100%" stopColor={theme.mapMarker} stopOpacity="0" />
+            </radialGradient>
+          </defs>
+
           <Geographies geography={GEO_URL}>
             {({ geographies }) =>
               geographies.map((geo) => (
@@ -192,12 +362,8 @@ function AttackMap({ attackers, onCountryClick }: Props) {
           {markers.map((m) => (
             <Marker key={m.country} coordinates={m.coords}>
               <circle
-                r={Math.min(4 + m.count * 2, 14) / Math.sqrt(zoom)}
-                fill={theme.mapMarker}
-                opacity={0.85}
-                stroke={theme.mapMarker}
-                strokeWidth={2 / Math.sqrt(zoom)}
-                strokeOpacity={0.4}
+                r={Math.min(5 + m.count * 2.4, 17) / Math.sqrt(zoom)}
+                fill="url(#attackerMarkerGrad)"
                 style={{ cursor: 'pointer' }}
                 onMouseEnter={(e) => {
                   const rect = (e.target as SVGCircleElement).closest('div')?.getBoundingClientRect()
@@ -216,6 +382,51 @@ function AttackMap({ attackers, onCountryClick }: Props) {
               />
             </Marker>
           ))}
+
+          <LaserLayer markers={markers} zoom={zoom} />
+
+          {COUNTRY_COORDS[USER_COUNTRY] && (
+            <Marker coordinates={COUNTRY_COORDS[USER_COUNTRY]}>
+              <g
+                transform={`scale(${1 / Math.sqrt(zoom)})`}
+                style={{ pointerEvents: 'none' }}
+              >
+                <circle r={3} fill="none" stroke={theme.success} strokeWidth={1.2} opacity={0.7}>
+                  <animate
+                    attributeName="r"
+                    values="3;14;14"
+                    dur="2.2s"
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="opacity"
+                    values="0.7;0;0"
+                    dur="2.2s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+                <circle r={3} fill="none" stroke={theme.success} strokeWidth={1.2} opacity={0.7}>
+                  <animate
+                    attributeName="r"
+                    values="3;14;14"
+                    dur="2.2s"
+                    begin="1.1s"
+                    repeatCount="indefinite"
+                  />
+                  <animate
+                    attributeName="opacity"
+                    values="0.7;0;0"
+                    dur="2.2s"
+                    begin="1.1s"
+                    repeatCount="indefinite"
+                  />
+                </circle>
+                <circle r={6} fill={theme.success} opacity={0.22} />
+                <circle r={3.5} fill={theme.success} opacity={0.55} />
+                <circle r={1.6} fill="#ffffff" />
+              </g>
+            </Marker>
+          )}
         </ZoomableGroup>
       </ComposableMap>
 

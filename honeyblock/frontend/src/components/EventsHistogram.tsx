@@ -6,7 +6,11 @@ interface Props {
 }
 
 function EventsHistogram({ data }: Props) {
-  const { theme } = useTheme()
+  const { theme, themeName } = useTheme()
+  // In themes where `brand` is blue, the default blue Events/IPs lines collide.
+  // Swap IPs to the theme's success color in those cases for separation.
+  const brandIsBlue = themeName === 'github-light' || themeName === 'solarized-light'
+  const ipsColor = brandIsBlue ? theme.success : '#3498db'
 
   if (data.length === 0) {
     return (
@@ -64,19 +68,19 @@ function EventsHistogram({ data }: Props) {
           type="monotone"
           dataKey="events"
           name="Events"
-          stroke="#2ecc71"
+          stroke={theme.brand}
           strokeWidth={2}
           dot={false}
-          activeDot={{ r: 4, fill: '#2ecc71' }}
+          activeDot={{ r: 4, fill: theme.brand }}
         />
         <Line
           type="monotone"
           dataKey="unique_ips"
           name="Unique Source IPs"
-          stroke="#3498db"
+          stroke={ipsColor}
           strokeWidth={2}
           dot={false}
-          activeDot={{ r: 4, fill: '#3498db' }}
+          activeDot={{ r: 4, fill: ipsColor }}
         />
       </LineChart>
     </ResponsiveContainer>
