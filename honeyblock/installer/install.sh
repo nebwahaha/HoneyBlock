@@ -89,16 +89,43 @@ fi
 
 source /etc/os-release
 
-if [[ "$ID" != "ubuntu" ]]; then
-  fail "Unsupported OS: ${BOLD}$ID${NC}. This installer requires Ubuntu."
+if ! command -v apt-get &>/dev/null; then
+  fail "apt-get not found. Requires a Debian-based distro (Ubuntu, Debian, Mint, Pop!_OS, Kali, Parrot, elementary, Zorin, Raspberry Pi OS)."
+fi
+
+if ! command -v systemctl &>/dev/null; then
+  fail "systemctl not found. Requires a systemd-based distribution."
 fi
 
 MAJOR_VERSION="${VERSION_ID%%.*}"
-if [[ "$MAJOR_VERSION" -lt 20 ]]; then
-  fail "Ubuntu $VERSION_ID is too old. Version 20.04 or later is required."
-fi
+MAJOR_VERSION="${MAJOR_VERSION:-0}"
 
-info "Ubuntu ${VERSION_ID} detected"
+case "$ID" in
+  ubuntu|linuxmint|pop|neon)
+    [[ "$MAJOR_VERSION" -ge 20 ]] || fail "${PRETTY_NAME:-$ID $VERSION_ID} is too old. Version 20.04 or equivalent is required."
+    ;;
+  debian|raspbian)
+    [[ "$MAJOR_VERSION" -ge 11 ]] || fail "${PRETTY_NAME:-$ID $VERSION_ID} is too old. Debian 11 (Bullseye) or later is required."
+    ;;
+  elementary)
+    [[ "$MAJOR_VERSION" -ge 6 ]] || fail "${PRETTY_NAME:-$ID $VERSION_ID} is too old. elementary OS 6 or later is required."
+    ;;
+  zorin)
+    [[ "$MAJOR_VERSION" -ge 16 ]] || fail "${PRETTY_NAME:-$ID $VERSION_ID} is too old. Zorin OS 16 or later is required."
+    ;;
+  kali|parrot)
+    # Rolling Debian-derived — no version floor
+    ;;
+  *)
+    if [[ "${ID_LIKE:-}" == *debian* || "${ID_LIKE:-}" == *ubuntu* ]]; then
+      warn "Unrecognized distro '${PRETTY_NAME:-$ID}' — assuming Debian-compatible"
+    else
+      fail "Unsupported OS: ${PRETTY_NAME:-$ID}. Requires a Debian-based distro (Ubuntu, Debian, Mint, Pop!_OS, Kali, Parrot, elementary, Zorin, Raspberry Pi OS)."
+    fi
+    ;;
+esac
+
+info "${PRETTY_NAME:-$ID $VERSION_ID} detected"
 
 # ── Resolve source directory ───────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -106,11 +133,12 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # ── Step 2: Install system packages ───────────────────────────────────────
 step "Installing system packages"
-detail "python3, git, iptables, authbind, libssl-dev, libffi-dev"
+detail "python3, build tools, git, iptables, authbind, libssl-dev, libffi-dev"
 
 apt-get update -qq > /dev/null 2>&1
 apt-get install -y -qq \
-  python3 python3-pip python3-venv \
+  python3 python3-pip python3-venv python3-dev \
+  build-essential \
   git iptables authbind libssl-dev libffi-dev > /dev/null 2>&1
 
 info "System packages installed"

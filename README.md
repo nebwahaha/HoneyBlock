@@ -4,7 +4,7 @@ A honeypot monitoring system that deploys a Cowrie SSH/Telnet honeypot, logs att
 
 ![Dashboard](https://img.shields.io/badge/Dashboard-React%20%2B%20TypeScript-blue)
 ![Backend](https://img.shields.io/badge/Backend-Flask%20%2B%20SQLite-green)
-![Platform](https://img.shields.io/badge/Platform-Ubuntu%2020.04%2B-orange)
+![Platform](https://img.shields.io/badge/Platform-Debian--family%20Linux-orange)
 ![License](https://img.shields.io/badge/License-MIT-yellow)
 
 ![HoneyBlock Dashboard](honeyblock/assets/dashboard/HoneyBlock-Preview.png)
@@ -14,8 +14,8 @@ A honeypot monitoring system that deploys a Cowrie SSH/Telnet honeypot, logs att
 - **Real-time Monitoring Dashboard** — Live feed of raw Cowrie logs, top attacker bar chart, and world map showing attack origins
 - **IP Blocking** — One-click block/unblock attacker IPs using iptables firewall rules
 - **3-Table Database** — Tracks attacker sessions, attacker profiles with geolocation, and block history
-- **One-Command Installer** — Single `.run` file installs everything on a fresh Ubuntu machine
-- **Desktop Shortcut** — Toggle HoneyBlock on/off from your Ubuntu desktop
+- **One-Command Installer** — Single `.run` file installs everything on a fresh Debian-family Linux machine
+- **Desktop Shortcut** — Toggle HoneyBlock on/off from your Linux desktop
 - **Auto-Start** — Optional boot-on-startup for all services
 
 ## How It Works
@@ -39,7 +39,13 @@ Attacker tries SSH/Telnet (port 2222)
 
 ## Quick Start
 
-> **Requirements:** Ubuntu 20.04+ &bull; Root access (sudo) &bull; Internet connection
+> **Requirements:** Debian-family Linux with `apt` + `systemd` &bull; Root access (sudo) &bull; Internet connection
+>
+> **Officially tested:** Ubuntu 20.04 / 22.04 / 24.04
+>
+> **Should work (same package base, x86_64):** Debian 11+, Linux Mint 20+, Pop!_OS 20.04+, Kali Linux 2020+, Parrot OS 5+, elementary OS 6+, Zorin OS 16+, KDE Neon 20+
+>
+> **Best-effort (will install but pip may need to compile from source):** Raspberry Pi OS (ARM), other Debian-derivatives reporting `ID_LIKE=debian`
 
 ### Option 1: One-command install
 
