@@ -41,7 +41,7 @@ Attacker tries SSH/Telnet (port 2222)
 
 > **Requirements:** Debian-family Linux with `apt` + `systemd` &bull; Root access (sudo) &bull; Internet connection
 >
-> **Officially tested:** Ubuntu 20.04 / 22.04 / 24.04
+> **Officially tested:** Ubuntu 20.04 / 22.04 / 24.04, Xubuntu, Lubuntu, Kubuntu
 >
 > **Should work (same package base, x86_64):** Debian 11+, Linux Mint 20+, Pop!_OS 20.04+, Kali Linux 2020+, Parrot OS 5+, elementary OS 6+, Zorin OS 16+, KDE Neon 20+
 >
