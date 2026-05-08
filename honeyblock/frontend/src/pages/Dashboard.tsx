@@ -409,7 +409,7 @@ function Dashboard() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {/* Time range filter */}
-          <div ref={filterRef} style={{ position: 'relative' }}>
+          <div ref={filterRef} data-onboarding="dash-time-filter" style={{ position: 'relative' }}>
             <button
               onClick={() => setFilterOpen(!filterOpen)}
               style={{
@@ -480,6 +480,7 @@ function Dashboard() {
             onClick={handleManualRefresh}
             disabled={refreshing}
             title="Refresh"
+            data-onboarding="dash-refresh"
             style={{
               width: 36,
               height: 36,
@@ -515,6 +516,7 @@ function Dashboard() {
           <button
             onClick={handleLogsToggle}
             title="Live logs"
+            data-onboarding="dash-live-logs"
             style={{
               width: 36,
               height: 36,
@@ -557,91 +559,101 @@ function Dashboard() {
               />
             )}
           </button>
-          <NotificationBell />
+          <span data-onboarding="dash-notifications" style={{ display: 'inline-flex' }}>
+            <NotificationBell />
+          </span>
         </div>
       </div>
 
       {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 12 }}>
-        <StatCard
-          icon={
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" /></svg>
-          }
-          label="Total Sessions"
-          value={stats?.total_attempts ?? 0}
-          color={theme.error}
-          delay={0}
-        />
-        <StatCardPopup
-          icon={
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
-          }
-          label="Unique IPs"
-          value={stats?.unique_ips ?? 0}
-          color={theme.blueLink}
-          delay={1}
-          fetchRows={async (page) => {
-            const rangeQ = timeRange !== 'all' ? `&range=${timeRange}` : ''
-            const res = await fetch(`/api/unique-ips?page=${page}&limit=50${rangeQ}`)
-            const json = await res.json()
-            return {
-              rows: json.data.map((d: { ip: string; attack_count: number }) => ({
-                primary: d.ip,
-                secondary: `${d.attack_count} attacks`,
-              })),
-              hasMore: (page * 50) < json.total,
+        <div data-onboarding="stat-total-sessions" style={{ display: 'flex' }}>
+          <StatCard
+            icon={
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" /></svg>
             }
-          }}
-          onRowClick={setSelectedAttackerIp}
-        />
-        <StatCardPopup
-          icon={
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
-          }
-          label="Blocked IPs"
-          value={stats?.blocked_ips ?? 0}
-          color={theme.amber}
-          delay={2}
-          fetchRows={async () => {
-            const res = await fetch('/api/blocked')
-            const json = await res.json()
-            return {
-              rows: (json.data ?? [])
-                .filter((d: { is_active: string }) => d.is_active === 'Block_active')
-                .map((d: { ip: string; block_date: string }) => ({
+            label="Total Sessions"
+            value={stats?.total_attempts ?? 0}
+            color={theme.error}
+            delay={0}
+          />
+        </div>
+        <div data-onboarding="stat-unique-ips" style={{ display: 'flex' }}>
+          <StatCardPopup
+            icon={
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M22 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+            }
+            label="Unique IPs"
+            value={stats?.unique_ips ?? 0}
+            color={theme.blueLink}
+            delay={1}
+            fetchRows={async (page) => {
+              const rangeQ = timeRange !== 'all' ? `&range=${timeRange}` : ''
+              const res = await fetch(`/api/unique-ips?page=${page}&limit=50${rangeQ}`)
+              const json = await res.json()
+              return {
+                rows: json.data.map((d: { ip: string; attack_count: number }) => ({
                   primary: d.ip,
-                  secondary: new Date(d.block_date).toLocaleDateString(),
+                  secondary: `${d.attack_count} attacks`,
                 })),
-              hasMore: false,
+                hasMore: (page * 50) < json.total,
+              }
+            }}
+            onRowClick={setSelectedAttackerIp}
+          />
+        </div>
+        <div data-onboarding="stat-blocked-ips" style={{ display: 'flex' }}>
+          <StatCardPopup
+            icon={
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
             }
-          }}
-        />
-        <StatCardPopup
-          icon={
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" /></svg>
-          }
-          label="Active Sessions"
-          value={activeSessions}
-          color={theme.success}
-          delay={3}
-          fetchRows={async () => {
-            const res = await fetch('/api/active-sessions')
-            const json = await res.json()
-            return {
-              rows: (json ?? []).map((d: { ip: string; last_seen: string }) => ({
-                primary: d.ip,
-                secondary: new Date(d.last_seen).toLocaleTimeString(),
-              })),
-              hasMore: false,
+            label="Blocked IPs"
+            value={stats?.blocked_ips ?? 0}
+            color={theme.amber}
+            delay={2}
+            fetchRows={async () => {
+              const res = await fetch('/api/blocked')
+              const json = await res.json()
+              return {
+                rows: (json.data ?? [])
+                  .filter((d: { is_active: string }) => d.is_active === 'Block_active')
+                  .map((d: { ip: string; block_date: string }) => ({
+                    primary: d.ip,
+                    secondary: new Date(d.block_date).toLocaleDateString(),
+                  })),
+                hasMore: false,
+              }
+            }}
+          />
+        </div>
+        <div data-onboarding="stat-active-sessions" style={{ display: 'flex' }}>
+          <StatCardPopup
+            icon={
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" /></svg>
             }
-          }}
-          onRowClick={setSelectedLiveIp}
-        />
+            label="Active Sessions"
+            value={activeSessions}
+            color={theme.success}
+            delay={3}
+            fetchRows={async () => {
+              const res = await fetch('/api/active-sessions')
+              const json = await res.json()
+              return {
+                rows: (json ?? []).map((d: { ip: string; last_seen: string }) => ({
+                  primary: d.ip,
+                  secondary: new Date(d.last_seen).toLocaleTimeString(),
+                })),
+                hasMore: false,
+              }
+            }}
+            onRowClick={setSelectedLiveIp}
+          />
+        </div>
       </div>
 
       {/* Charts row — toggleable */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 0, flex: 1, minHeight: 0 }}>
-        <div style={{ ...cardStyle, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div data-onboarding="top-attackers" style={{ ...cardStyle, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <h3 style={{ ...h3Style, marginBottom: 0 }}>
               {showProtocol ? 'Attack Protocols' : 'Top 5 Attacker IPs'}
@@ -673,7 +685,7 @@ function Dashboard() {
           </div>
         </div>
 
-        <div style={{ ...cardStyle, gridColumn: 'span 3', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div data-onboarding="general-location" style={{ ...cardStyle, gridColumn: 'span 3', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <h3 style={{ ...h3Style, marginBottom: 0 }}>
               {showCountries ? 'Countries' : 'General Location of Attacks'}
@@ -708,7 +720,7 @@ function Dashboard() {
 
       {/* Top creds, histogram & top commands */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 10, flex: 1, minHeight: 0 }}>
-        <div style={{ ...cardStyle, gridColumn: 'span 2', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div data-onboarding="top-creds" style={{ ...cardStyle, gridColumn: 'span 2', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <h3 style={{ ...h3Style, marginBottom: 0 }}>
               {showPasswords ? 'Cowrie Top 10 Passwords' : 'Cowrie Top 10 Usernames'}
@@ -754,14 +766,14 @@ function Dashboard() {
           </div>
         </div>
 
-        <div style={{ ...cardStyle, gridColumn: 'span 3', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div data-onboarding="events-histogram" style={{ ...cardStyle, gridColumn: 'span 3', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <h3 style={h3Style}>Honeypot Events Histogram</h3>
           <div style={{ flex: 1, minHeight: 0 }}>
             <EventsHistogram data={stats?.hourly_histogram ?? []} />
           </div>
         </div>
 
-        <div style={{ ...cardStyle, gridColumn: 'span 3', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+        <div data-onboarding="common-commands" style={{ ...cardStyle, gridColumn: 'span 3', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
           <h3 style={h3Style}>Common Commands Executed</h3>
           <div style={{ flex: 1, minHeight: 0, overflowY: 'auto' }}>
             {renderTopList(

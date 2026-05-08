@@ -1,6 +1,9 @@
 import json
 import os
 import subprocess
+import time
+import urllib.error
+import urllib.request
 from collections import deque
 from datetime import datetime, timedelta, timezone
 
@@ -263,6 +266,42 @@ def unique_ips():
 @app.route("/api/active-sessions")
 def active_sessions():
     return jsonify(db.get_active_sessions())
+
+
+# ---------------------------------------------------------------------------
+# Host info — public IP & country of the machine running honeyblock.
+# Used by the attack map to place the defender marker correctly.
+# ---------------------------------------------------------------------------
+_host_info_cache: dict = {"data": None, "ts": 0.0}
+_HOST_INFO_TTL = 3600  # 1h — public IP rarely changes
+
+
+@app.route("/api/host-info")
+def host_info():
+    now = time.time()
+    cached = _host_info_cache["data"]
+    if cached and (now - _host_info_cache["ts"]) < _HOST_INFO_TTL:
+        return jsonify(cached)
+
+    result = {"public_ip": None, "country": None, "city": None}
+    try:
+        # No IP in the path → ip-api.com returns info for the requester (this server).
+        url = "http://ip-api.com/json/?fields=status,query,country,city"
+        req = urllib.request.Request(url, headers={"User-Agent": "HoneyBlock/1.0"})
+        with urllib.request.urlopen(req, timeout=5) as resp:
+            data = json.loads(resp.read().decode())
+        if data.get("status") == "success":
+            result = {
+                "public_ip": data.get("query"),
+                "country": data.get("country"),
+                "city": data.get("city"),
+            }
+    except (urllib.error.URLError, OSError, json.JSONDecodeError, KeyError) as exc:
+        result["error"] = str(exc)
+
+    _host_info_cache["data"] = result
+    _host_info_cache["ts"] = now
+    return jsonify(result)
 
 
 @app.route("/api/cowrie/status")

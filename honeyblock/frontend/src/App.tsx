@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import { useTheme } from './theme'
 import Sidebar from './components/Sidebar'
+import OnboardingTutorial from './components/OnboardingTutorial'
 import Dashboard from './pages/Dashboard'
 import Blocking from './pages/Blocking'
 import Configurations from './pages/Configurations'
@@ -394,7 +395,7 @@ function App() {
             <span style={{ color: theme.textTertiary, fontSize: 12 }}>/</span>
             <span style={{ color: theme.heading, fontSize: 12, fontWeight: 600 }}>{pageLabel}</span>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+          <div data-onboarding="status-pills" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             {[
               { pill: cowriePill, running: cowrieRunning },
               { pill: watcherPill, running: watcherRunning },
@@ -432,6 +433,10 @@ function App() {
           <PageStack currentPath={location.pathname} />
         </main>
       </div>
+      {/* Tutorial — mounted globally so the sidebar "Take a Tour" button can
+          open it from any page. First-launch auto-open is self-gated via
+          localStorage; manual opens come through a window event. */}
+      <OnboardingTutorial />
     </div>
   )
 }

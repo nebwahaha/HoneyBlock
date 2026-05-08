@@ -239,7 +239,7 @@ function Configurations() {
       {/* ─── Service Controls ─── */}
       <div style={sectionLabel}>Service Controls</div>
 
-      <div style={grid2Col}>
+      <div data-onboarding="cfg-service-controls" style={grid2Col}>
       <div style={rowCard}>
         <div style={iconBox(!!cowrieRunning)}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -278,7 +278,7 @@ function Configurations() {
       </div>
 
       {/* Log watcher */}
-      <div style={rowCard}>
+      <div data-onboarding="cfg-log-watcher" style={rowCard}>
         <div style={iconBox(!!watcherRunning)}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -357,7 +357,7 @@ function Configurations() {
       {/* ─── Automation ─── */}
       <div style={{ ...sectionLabel, marginTop: 14 }}>Automation</div>
 
-      <div style={grid2Col}>
+      <div data-onboarding="cfg-automation" style={grid2Col}>
       <div style={rowCard}>
         <div style={iconBox(!!autoStart)}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -458,22 +458,24 @@ function Configurations() {
 
         return (
           <>
-            <div style={{ ...sectionLabel, marginTop: 14 }}>Dark Themes</div>
-            <div style={groupCard}>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {darkThemes.map(renderThemeButton)}
+            <div data-onboarding="cfg-themes">
+              <div style={{ ...sectionLabel, marginTop: 14 }}>Dark Themes</div>
+              <div style={groupCard}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {darkThemes.map(renderThemeButton)}
+                </div>
               </div>
-            </div>
 
-            <div style={{ ...sectionLabel, marginTop: 14 }}>Light Themes</div>
-            <div style={groupCard}>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                {lightThemes.map(renderThemeButton)}
+              <div style={{ ...sectionLabel, marginTop: 14 }}>Light Themes</div>
+              <div style={groupCard}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  {lightThemes.map(renderThemeButton)}
+                </div>
               </div>
             </div>
 
             <div style={{ ...sectionLabel, marginTop: 14 }}>Custom Theme</div>
-            <div style={groupCard}>
+            <div data-onboarding="cfg-custom-theme" style={groupCard}>
               <div
                 style={{
                   display: 'flex',

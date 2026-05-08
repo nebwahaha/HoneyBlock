@@ -1,18 +1,45 @@
-import { NavLink } from 'react-router-dom'
+import { useState } from 'react'
+import { NavLink, useNavigate, useLocation } from 'react-router-dom'
 import { useTheme } from '../theme'
+import { ONBOARDING_OPEN_EVENT } from './OnboardingTutorial'
 
 function Sidebar() {
   const { theme } = useTheme()
+  const navigate = useNavigate()
+  const location = useLocation()
+  const [tourHover, setTourHover] = useState(false)
+
+  const startTour = () => {
+    // Manual replays are scoped to the page the user is currently on. If we
+    // are on a known route, send only that section's steps; otherwise route to
+    // the dashboard and run the dashboard tour from there.
+    const sectionByPath: Record<string, 'dashboard' | 'blocking' | 'configurations'> = {
+      '/': 'dashboard',
+      '/blocking': 'blocking',
+      '/configurations': 'configurations',
+    }
+    const section = sectionByPath[location.pathname]
+    if (!section) {
+      navigate('/')
+      requestAnimationFrame(() => {
+        window.dispatchEvent(new CustomEvent(ONBOARDING_OPEN_EVENT, { detail: { section: 'dashboard' } }))
+      })
+    } else {
+      window.dispatchEvent(new CustomEvent(ONBOARDING_OPEN_EVENT, { detail: { section } }))
+    }
+  }
 
   const navItem = (
     to: string,
     label: string,
     icon: React.ReactNode,
     end?: boolean,
+    onboardingId?: string,
   ) => (
     <NavLink
       to={to}
       end={end}
+      data-onboarding={onboardingId}
       style={({ isActive }) => ({
         display: 'flex',
         alignItems: 'center',
@@ -136,6 +163,7 @@ function Sidebar() {
             <rect x="14" y="14" width="7" height="7" />
           </svg>,
           true,
+          'nav-dashboard',
         )}
         {navItem(
           '/blocking',
@@ -144,6 +172,8 @@ function Sidebar() {
             <circle cx="12" cy="12" r="10" />
             <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
           </svg>,
+          false,
+          'nav-blocking',
         )}
         {navItem(
           '/configurations',
@@ -152,13 +182,52 @@ function Sidebar() {
             <circle cx="12" cy="12" r="3" />
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </svg>,
+          false,
+          'nav-configurations',
         )}
       </nav>
+
+      {/* "Take a Tour" — replays the onboarding tutorial. Sits just above the
+          admin chip; uses the theme's brand color so it picks up whatever
+          accent the user has chosen. */}
+      <button
+        onClick={startTour}
+        onMouseEnter={() => setTourHover(true)}
+        onMouseLeave={() => setTourHover(false)}
+        style={{
+          marginTop: 'auto',
+          display: 'flex',
+          alignItems: 'center',
+          gap: 9,
+          width: '100%',
+          padding: '8px 10px',
+          borderRadius: 8,
+          background: tourHover ? theme.navActiveBg : 'transparent',
+          border: `1px solid ${tourHover ? theme.brand + '44' : theme.brand + '22'}`,
+          color: theme.brand,
+          fontSize: 12,
+          fontWeight: 600,
+          fontFamily: 'inherit',
+          cursor: 'pointer',
+          textAlign: 'left',
+          transition: 'background 0.15s, border-color 0.15s',
+        }}
+        title="Replay the tutorial for this page"
+      >
+        <span style={{ flexShrink: 0, display: 'inline-flex', color: theme.brand }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="10" />
+            <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+            <line x1="12" y1="17" x2="12.01" y2="17" />
+          </svg>
+        </span>
+        Take a Tour
+      </button>
 
       {/* Footer admin chip */}
       <div
         style={{
-          marginTop: 'auto',
+          marginTop: 8,
           padding: '14px 8px 0',
           borderTop: `1px solid ${theme.sidebarBorder}`,
           display: 'flex',

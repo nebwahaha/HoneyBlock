@@ -192,6 +192,7 @@ function Blocking() {
         }}
       >
       <div
+        data-onboarding="block-session-limit"
         style={{
           ...cardStyle,
           display: 'flex',
@@ -313,6 +314,7 @@ function Blocking() {
 
       {/* Block expiration duration */}
       <div
+        data-onboarding="block-expiration"
         style={{
           ...cardStyle,
           display: 'flex',
@@ -355,7 +357,7 @@ function Blocking() {
       </div>
 
       {/* Attacker list with block/unblock buttons */}
-      <div style={{ ...cardStyle, marginBottom: 24 }}>
+      <div data-onboarding="block-detected-attackers" style={{ ...cardStyle, marginBottom: 24 }}>
         <h3 style={{ color: theme.heading, fontSize: 13, fontWeight: 700, marginBottom: 14 }}>
           Detected Attackers
         </h3>
@@ -435,7 +437,7 @@ function Blocking() {
       </div>
 
       {/* Blocklist history */}
-      <div style={cardStyle}>
+      <div data-onboarding="block-history" style={cardStyle}>
         <h3 style={{ color: theme.heading, fontSize: 13, fontWeight: 700, marginBottom: 14 }}>
           Block History
         </h3>

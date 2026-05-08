@@ -98,7 +98,7 @@ interface Props {
   onCountryClick?: (country: string) => void
 }
 
-const USER_COUNTRY = 'Philippines'
+const FALLBACK_COUNTRY = 'Philippines'
 const PROJECTION = geoMercator().scale(120).translate([400, 300]).center([0, 0])
 
 interface MarkerData {
@@ -130,17 +130,25 @@ function bezierPoint(
   ]
 }
 
-function LaserLayer({ markers, zoom }: { markers: MarkerData[]; zoom: number }) {
+function LaserLayer({
+  markers,
+  zoom,
+  userCountry,
+}: {
+  markers: MarkerData[]
+  zoom: number
+  userCountry: string
+}) {
   const [lasers, setLasers] = useState<Laser[]>([])
 
   const validSources = useMemo(
-    () => markers.filter((m) => m.country !== USER_COUNTRY),
-    [markers],
+    () => markers.filter((m) => m.country !== userCountry),
+    [markers, userCountry],
   )
 
   // Spawn lasers on a sparse, randomized cadence — max 2 concurrent.
   useEffect(() => {
-    const userCoords = COUNTRY_COORDS[USER_COUNTRY]
+    const userCoords = COUNTRY_COORDS[userCountry]
     if (!userCoords || validSources.length === 0) return
     const target = PROJECTION(userCoords) as [number, number] | null
     if (!target) return
@@ -258,10 +266,45 @@ function LaserLayer({ markers, zoom }: { markers: MarkerData[]; zoom: number }) 
 
 function AttackMap({ attackers, onCountryClick }: Props) {
   const { theme } = useTheme()
-  const [zoom, setZoom] = useState(2.5)
+  const [zoom, setZoom] = useState(4)
   const [center, setCenter] = useState<[number, number]>([70, 20])
   const [tooltip, setTooltip] = useState<{ country: string; count: number; x: number; y: number } | null>(null)
+  const [hostInfo, setHostInfo] = useState<{ public_ip: string | null; country: string | null } | null>(null)
+  const [cowrieRunning, setCowrieRunning] = useState<boolean | null>(null)
+  const [userPopup, setUserPopup] = useState<{ x: number; y: number } | null>(null)
+  const [revealIp, setRevealIp] = useState(false)
   const mapRef = useRef<HTMLDivElement>(null)
+
+  const userCountry =
+    (hostInfo?.country && COUNTRY_COORDS[hostInfo.country] ? hostInfo.country : null) ??
+    FALLBACK_COUNTRY
+
+  useEffect(() => {
+    let cancelled = false
+    fetch('/api/host-info')
+      .then((r) => r.json())
+      .then((d) => { if (!cancelled) setHostInfo(d) })
+      .catch(() => {})
+    return () => { cancelled = true }
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const load = () => {
+      fetch('/api/cowrie/status')
+        .then((r) => r.json())
+        .then((d) => { if (!cancelled) setCowrieRunning(!!d.running) })
+        .catch(() => {})
+    }
+    load()
+    const id = setInterval(load, 15_000)
+    return () => { cancelled = true; clearInterval(id) }
+  }, [])
+
+  const maskedIp = (ip: string | null | undefined) => {
+    if (!ip) return 'unknown'
+    return ip.replace(/[^.:]/g, '•')
+  }
 
   const btnStyle: React.CSSProperties = {
     width: 28,
@@ -383,47 +426,63 @@ function AttackMap({ attackers, onCountryClick }: Props) {
             </Marker>
           ))}
 
-          <LaserLayer markers={markers} zoom={zoom} />
+          <LaserLayer markers={markers} zoom={zoom} userCountry={userCountry} />
 
-          {COUNTRY_COORDS[USER_COUNTRY] && (
-            <Marker coordinates={COUNTRY_COORDS[USER_COUNTRY]}>
-              <g
-                transform={`scale(${1 / Math.sqrt(zoom)})`}
-                style={{ pointerEvents: 'none' }}
-              >
-                <circle r={3} fill="none" stroke={theme.success} strokeWidth={1.2} opacity={0.7}>
-                  <animate
-                    attributeName="r"
-                    values="3;14;14"
-                    dur="2.2s"
-                    repeatCount="indefinite"
-                  />
-                  <animate
-                    attributeName="opacity"
-                    values="0.7;0;0"
-                    dur="2.2s"
-                    repeatCount="indefinite"
-                  />
-                </circle>
-                <circle r={3} fill="none" stroke={theme.success} strokeWidth={1.2} opacity={0.7}>
-                  <animate
-                    attributeName="r"
-                    values="3;14;14"
-                    dur="2.2s"
-                    begin="1.1s"
-                    repeatCount="indefinite"
-                  />
-                  <animate
-                    attributeName="opacity"
-                    values="0.7;0;0"
-                    dur="2.2s"
-                    begin="1.1s"
-                    repeatCount="indefinite"
-                  />
-                </circle>
-                <circle r={6} fill={theme.success} opacity={0.22} />
-                <circle r={3.5} fill={theme.success} opacity={0.55} />
-                <circle r={1.6} fill="#ffffff" />
+          {COUNTRY_COORDS[userCountry] && (
+            <Marker coordinates={COUNTRY_COORDS[userCountry]}>
+              <g transform={`scale(${1 / Math.sqrt(zoom)})`}>
+                <g style={{ pointerEvents: 'none' }}>
+                  <circle r={3} fill="none" stroke={theme.success} strokeWidth={1.2} opacity={0.7}>
+                    <animate
+                      attributeName="r"
+                      values="3;14;14"
+                      dur="2.2s"
+                      repeatCount="indefinite"
+                    />
+                    <animate
+                      attributeName="opacity"
+                      values="0.7;0;0"
+                      dur="2.2s"
+                      repeatCount="indefinite"
+                    />
+                  </circle>
+                  <circle r={3} fill="none" stroke={theme.success} strokeWidth={1.2} opacity={0.7}>
+                    <animate
+                      attributeName="r"
+                      values="3;14;14"
+                      dur="2.2s"
+                      begin="1.1s"
+                      repeatCount="indefinite"
+                    />
+                    <animate
+                      attributeName="opacity"
+                      values="0.7;0;0"
+                      dur="2.2s"
+                      begin="1.1s"
+                      repeatCount="indefinite"
+                    />
+                  </circle>
+                  <circle r={6} fill={theme.success} opacity={0.22} />
+                  <circle r={3.5} fill={theme.success} opacity={0.55} />
+                  <circle r={1.6} fill="#ffffff" />
+                </g>
+                {/* Click target — slightly larger so it's easy to hit */}
+                <circle
+                  r={9}
+                  fill="transparent"
+                  style={{ cursor: 'pointer' }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    const rect = mapRef.current?.getBoundingClientRect()
+                    const t = (e.target as SVGCircleElement).getBoundingClientRect()
+                    if (rect) {
+                      setUserPopup({
+                        x: t.left - rect.left + t.width / 2,
+                        y: t.top - rect.top - 8,
+                      })
+                    }
+                  }}
+                />
               </g>
             </Marker>
           )}
@@ -453,6 +512,90 @@ function AttackMap({ attackers, onCountryClick }: Props) {
           <div style={{ fontWeight: 600, color: theme.heading }}>{tooltip.country}</div>
           <div>{tooltip.count} attacker{tooltip.count !== 1 ? 's' : ''}</div>
         </div>
+      )}
+
+      {/* User info popup */}
+      {userPopup && (
+        <>
+          <div
+            onClick={() => { setUserPopup(null); setRevealIp(false) }}
+            style={{ position: 'absolute', inset: 0, zIndex: 11 }}
+          />
+          <div
+            style={{
+              position: 'absolute',
+              left: userPopup.x,
+              top: userPopup.y,
+              transform: 'translate(-50%, -100%)',
+              background: theme.tooltipBg,
+              border: `1px solid ${theme.tooltipBorder}`,
+              borderRadius: 8,
+              padding: '10px 12px',
+              color: theme.textPrimary,
+              fontSize: 12,
+              minWidth: 240,
+              boxShadow: `0 6px 18px ${theme.shadow}`,
+              zIndex: 12,
+            }}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+              <div style={{ fontWeight: 600, color: theme.heading }}>This Honeypot</div>
+              <button
+                onClick={() => { setUserPopup(null); setRevealIp(false) }}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: theme.textSecondary,
+                  cursor: 'pointer',
+                  fontSize: 14,
+                  lineHeight: 1,
+                  padding: 0,
+                }}
+              >
+                ×
+              </button>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+              <span
+                style={{
+                  display: 'inline-block',
+                  width: 8,
+                  height: 8,
+                  borderRadius: '50%',
+                  background: cowrieRunning ? theme.success : theme.textSecondary,
+                  boxShadow: cowrieRunning ? `0 0 6px ${theme.success}` : 'none',
+                }}
+              />
+              <span>
+                Cowrie {cowrieRunning === null ? '…' : cowrieRunning ? 'active' : 'inactive'}
+              </span>
+            </div>
+            <div style={{ marginBottom: 4 }}>
+              Country: <span style={{ color: theme.heading }}>{hostInfo?.country ?? 'unknown'}</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>Public IP:</span>
+              <span style={{ fontFamily: 'monospace', color: theme.heading }}>
+                {revealIp ? (hostInfo?.public_ip ?? 'unknown') : maskedIp(hostInfo?.public_ip)}
+              </span>
+              <button
+                onClick={() => setRevealIp((v) => !v)}
+                style={{
+                  marginLeft: 'auto',
+                  background: theme.btnBg,
+                  border: `1px solid ${theme.btnBorder}`,
+                  borderRadius: 4,
+                  color: theme.btnText,
+                  fontSize: 11,
+                  cursor: 'pointer',
+                  padding: '2px 8px',
+                }}
+              >
+                {revealIp ? 'Hide' : 'Reveal'}
+              </button>
+            </div>
+          </div>
+        </>
       )}
 
       {/* Zoom controls */}
