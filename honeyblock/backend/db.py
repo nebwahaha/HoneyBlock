@@ -320,7 +320,7 @@ import json as _json
 
 AUTOBLOCK_CONFIG = os.path.join(os.path.dirname(DB_PATH), "autoblock.json")
 
-_AUTOBLOCK_DEFAULTS: dict = {"enabled": False, "threshold": 20, "block_duration": "never", "baselines": {}}
+_AUTOBLOCK_DEFAULTS: dict = {"enabled": True, "threshold": 20, "block_duration": "never", "baselines": {}}
 
 
 def _read_autoblock_file() -> dict:

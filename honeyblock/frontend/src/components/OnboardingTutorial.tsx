@@ -33,7 +33,7 @@ const STEPS: Step[] = [
     page: '/',
     section: 'dashboard',
     title: 'System Status',
-    body: 'These indicators in the top-right show whether Cowrie (the honeypot) and the log Watcher are running. A pulsing green dot means the service is healthy and ingesting events.',
+    body: 'This indicator in the top-right shows whether Cowrie (the honeypot) is running. A pulsing green dot means the service is healthy and ingesting events.',
   },
   {
     id: 'dash-time-filter',
@@ -181,15 +181,7 @@ const STEPS: Step[] = [
     page: '/configurations',
     section: 'configurations',
     title: 'Service Controls',
-    body: 'Start and stop the Cowrie honeypot and the Log Watcher from here. Cowrie listens for attackers; the Log Watcher tails its logs into the database that powers your dashboard.',
-  },
-  {
-    id: 'cfg-log-watcher',
-    page: '/configurations',
-    section: 'configurations',
-    warning: true,
-    title: 'Log Watcher Health',
-    body: 'If your dashboard stops updating with new attacks for a while, the Log Watcher is the first place to look. Hit the circular Restart button on this card to reset the tail process — that fixes most stale-data problems.',
+    body: 'Start and stop the Cowrie honeypot from here. The Log Watcher that feeds your dashboard runs on its own in the background — no controls needed.',
   },
   {
     id: 'cfg-automation',

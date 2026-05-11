@@ -315,7 +315,6 @@ function App() {
   const location = useLocation()
   const [loading, setLoading] = useState(true)
   const [cowrieRunning, setCowrieRunning] = useState<boolean | null>(null)
-  const [watcherRunning, setWatcherRunning] = useState<boolean | null>(null)
 
   useEffect(() => {
     const t = setTimeout(() => setLoading(false), 1200)
@@ -326,17 +325,10 @@ function App() {
     let cancelled = false
     const fetchStatus = async () => {
       try {
-        const [cowrieRes, watcherRes] = await Promise.all([
-          fetch('/api/cowrie/status'),
-          fetch('/api/watcher/status'),
-        ])
+        const cowrieRes = await fetch('/api/cowrie/status')
         if (cowrieRes.ok) {
           const data = await cowrieRes.json()
           if (!cancelled) setCowrieRunning(!!data.running)
-        }
-        if (watcherRes.ok) {
-          const data = await watcherRes.json()
-          if (!cancelled) setWatcherRunning(!!data.running)
         }
       } catch {
         // retry next tick
@@ -363,7 +355,6 @@ function App() {
     return { color: theme.error, text: `${label} · Stopped`, tooltip: `${label} is stopped` }
   }
   const cowriePill = statusPill(cowrieRunning, 'Cowrie')
-  const watcherPill = statusPill(watcherRunning, 'Watcher')
 
   return (
     <div
@@ -398,7 +389,6 @@ function App() {
           <div data-onboarding="status-pills" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             {[
               { pill: cowriePill, running: cowrieRunning },
-              { pill: watcherPill, running: watcherRunning },
             ].map(({ pill, running }, i) => (
               <div
                 key={i}

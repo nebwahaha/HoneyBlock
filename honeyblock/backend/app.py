@@ -7,7 +7,7 @@ import urllib.request
 from collections import deque
 from datetime import datetime, timedelta, timezone
 
-from flask import Flask, jsonify, request, send_from_directory
+from flask import Flask, jsonify, make_response, request, send_from_directory
 from flask_cors import CORS
 
 import db
@@ -242,6 +242,42 @@ def cowrie_logs():
     return jsonify({"data": result})
 
 
+@app.route("/api/logs/download")
+def cowrie_logs_download():
+    """Return all parsed Cowrie log entries as a downloadable JSON file."""
+    entries: list[dict] = []
+    if os.path.isfile(COWRIE_LOG):
+        try:
+            with open(COWRIE_LOG, "r") as fh:
+                for raw in fh:
+                    raw = raw.strip()
+                    if not raw:
+                        continue
+                    try:
+                        entries.append(json.loads(raw))
+                    except json.JSONDecodeError:
+                        continue
+        except OSError:
+            entries = []
+
+    # Newest first + country enrichment, same shape as /api/logs
+    entries.reverse()
+    ip_countries: dict[str, str | None] = {}
+    for entry in entries:
+        ip = entry.get("src_ip")
+        if ip and ip not in ip_countries:
+            attacker = db.get_attacker(ip)
+            ip_countries[ip] = attacker["country"] if attacker else None
+        if ip:
+            entry["country"] = ip_countries.get(ip)
+
+    filename = f"honeyblock-parsed-logs-{datetime.now(timezone.utc).strftime('%Y-%m-%d')}.json"
+    resp = make_response(json.dumps(entries, indent=2))
+    resp.headers["Content-Type"] = "application/json"
+    resp.headers["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return resp
+
+
 # ---------------------------------------------------------------------------
 # Cowrie service control
 # ---------------------------------------------------------------------------
@@ -332,73 +368,6 @@ def cowrie_toggle():
         return jsonify({
             "running": new_state,
             "message": f"Cowrie {'started' if new_state else 'stopped'} successfully"
-        })
-    except Exception as exc:
-        return jsonify({"running": False, "message": str(exc)}), 500
-
-
-# ---------------------------------------------------------------------------
-# Log watcher (honeyblock-watcher service)
-# ---------------------------------------------------------------------------
-WATCHER_SERVICE = "honeyblock-watcher"
-
-
-def _watcher_is_active() -> bool:
-    result = subprocess.run(
-        ["systemctl", "is-active", WATCHER_SERVICE],
-        capture_output=True, text=True, timeout=10
-    )
-    return result.stdout.strip() == "active"
-
-
-@app.route("/api/watcher/status")
-def watcher_status():
-    try:
-        return jsonify({"running": _watcher_is_active()})
-    except Exception as exc:
-        return jsonify({"running": False, "error": str(exc)}), 500
-
-
-@app.route("/api/watcher/toggle", methods=["POST"])
-def watcher_toggle():
-    try:
-        running = _watcher_is_active()
-        action = "stop" if running else "start"
-        result = subprocess.run(
-            ["systemctl", action, WATCHER_SERVICE],
-            capture_output=True, text=True, timeout=30
-        )
-        if result.returncode != 0:
-            return jsonify({
-                "running": running,
-                "message": f"Failed to {action} log watcher: {result.stderr.strip()}"
-            }), 500
-
-        new_state = _watcher_is_active()
-        return jsonify({
-            "running": new_state,
-            "message": f"Log watcher {'started' if new_state else 'stopped'} successfully"
-        })
-    except Exception as exc:
-        return jsonify({"running": False, "message": str(exc)}), 500
-
-
-@app.route("/api/watcher/restart", methods=["POST"])
-def watcher_restart():
-    try:
-        result = subprocess.run(
-            ["systemctl", "restart", WATCHER_SERVICE],
-            capture_output=True, text=True, timeout=30
-        )
-        if result.returncode != 0:
-            return jsonify({
-                "running": _watcher_is_active(),
-                "message": f"Failed to restart log watcher: {result.stderr.strip()}"
-            }), 500
-
-        return jsonify({
-            "running": _watcher_is_active(),
-            "message": "Log watcher restarted successfully"
         })
     except Exception as exc:
         return jsonify({"running": False, "message": str(exc)}), 500

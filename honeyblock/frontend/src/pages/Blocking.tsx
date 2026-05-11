@@ -1,6 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import type { Attacker, BlockEntry } from '../types'
 import { useTheme } from '../theme'
+
+type SortDir = 'asc' | 'desc'
+type AttackersSortKey = 'first_detected' | 'last_detected' | 'chances_left' | null
+type HistorySortKey = 'block_date' | 'expiration_date' | null
 
 function Blocking() {
   const { theme } = useTheme()
@@ -14,6 +18,17 @@ function Blocking() {
   const [savingThreshold, setSavingThreshold] = useState(false)
   const [blockDuration, setBlockDuration] = useState('never')
   const [savingDuration, setSavingDuration] = useState(false)
+
+  // Detected Attackers filters + sort
+  const [aStatus, setAStatus] = useState<'all' | 'blocked' | 'not_blocked'>('all')
+  const [aAction, setAAction] = useState<'all' | 'block' | 'unblock'>('all')
+  const [aCountry, setACountry] = useState<string>('all')
+  const [aSort, setASort] = useState<{ key: AttackersSortKey; dir: SortDir }>({ key: 'last_detected', dir: 'desc' })
+
+  // Block History filters + sort
+  const [hStatus, setHStatus] = useState<'all' | 'active' | 'inactive'>('all')
+  const [hBlockedBy, setHBlockedBy] = useState<string>('all')
+  const [hSort, setHSort] = useState<{ key: HistorySortKey; dir: SortDir }>({ key: 'block_date', dir: 'desc' })
 
   const fetchData = async () => {
     try {
@@ -144,6 +159,74 @@ function Blocking() {
     }
   }
 
+  // Country options derived from attackers list
+  const countryOptions = useMemo(() => {
+    const set = new Set<string>()
+    attackers.forEach(a => { if (a.country) set.add(a.country) })
+    return Array.from(set).sort()
+  }, [attackers])
+
+  const blockedByOptions = useMemo(() => {
+    const set = new Set<string>()
+    blocklist.forEach(b => { if (b.blocked_by) set.add(b.blocked_by) })
+    return Array.from(set).sort()
+  }, [blocklist])
+
+  const filteredAttackers = useMemo(() => {
+    const rows = attackers.filter(a => {
+      const isBlocked = a.is_blocked === 'Blocked'
+      if (aStatus === 'blocked' && !isBlocked) return false
+      if (aStatus === 'not_blocked' && isBlocked) return false
+      if (aAction === 'block' && isBlocked) return false
+      if (aAction === 'unblock' && !isBlocked) return false
+      if (aCountry !== 'all' && (a.country ?? '') !== aCountry) return false
+      return true
+    })
+    const { key, dir } = aSort
+    if (!key) return rows
+    const mult = dir === 'asc' ? 1 : -1
+    return [...rows].sort((a, b) => {
+      if (key === 'chances_left') {
+        const av = a.chances_left ?? -Infinity
+        const bv = b.chances_left ?? -Infinity
+        return (av - bv) * mult
+      }
+      const av = key === 'first_detected' ? a.initial_detection : a.last_detected
+      const bv = key === 'first_detected' ? b.initial_detection : b.last_detected
+      return (av ?? '').localeCompare(bv ?? '') * mult
+    })
+  }, [attackers, aStatus, aAction, aCountry, aSort])
+
+  const filteredHistory = useMemo(() => {
+    const rows = blocklist.filter(b => {
+      const active = b.is_active === 'Block_active'
+      if (hStatus === 'active' && !active) return false
+      if (hStatus === 'inactive' && active) return false
+      if (hBlockedBy !== 'all' && (b.blocked_by ?? '') !== hBlockedBy) return false
+      return true
+    })
+    const { key, dir } = hSort
+    if (!key) return rows
+    const mult = dir === 'asc' ? 1 : -1
+    return [...rows].sort((a, b) => {
+      const av = key === 'block_date' ? a.block_date : (a.expiration_date ?? '')
+      const bv = key === 'block_date' ? b.block_date : (b.expiration_date ?? '')
+      return (av ?? '').localeCompare(bv ?? '') * mult
+    })
+  }, [blocklist, hStatus, hBlockedBy, hSort])
+
+  const toggleASort = (key: NonNullable<AttackersSortKey>) => {
+    setASort(prev => prev.key === key
+      ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, dir: 'desc' })
+  }
+
+  const toggleHSort = (key: NonNullable<HistorySortKey>) => {
+    setHSort(prev => prev.key === key
+      ? { key, dir: prev.dir === 'asc' ? 'desc' : 'asc' }
+      : { key, dir: 'desc' })
+  }
+
   const thStyle: React.CSSProperties = {
     background: theme.tableHeaderBg,
     color: theme.textTertiary,
@@ -155,6 +238,127 @@ function Blocking() {
     letterSpacing: '0.4px',
     borderBottom: `1px solid ${theme.cardBorder}`,
     whiteSpace: 'nowrap',
+  }
+
+  const sortIndicator = (active: boolean, dir: SortDir) => (
+    <span
+      style={{
+        marginLeft: 6,
+        color: active ? theme.brand : theme.textSecondary,
+        fontSize: 11,
+        fontWeight: 700,
+        lineHeight: 1,
+      }}
+    >
+      {active ? (dir === 'asc' ? '▲' : '▼') : '↕'}
+    </span>
+  )
+
+  const SortableTh = ({
+    label,
+    active,
+    dir,
+    onClick,
+  }: {
+    label: string
+    active: boolean
+    dir: SortDir
+    onClick: () => void
+  }) => (
+    <th
+      onClick={onClick}
+      style={{
+        ...thStyle,
+        cursor: 'pointer',
+        userSelect: 'none',
+        color: active ? theme.brand : theme.textTertiary,
+      }}
+      title={`Sort by ${label}`}
+      onMouseEnter={(e) => { e.currentTarget.style.background = theme.cardHoverBg }}
+      onMouseLeave={(e) => { e.currentTarget.style.background = theme.tableHeaderBg }}
+    >
+      {label}
+      {sortIndicator(active, dir)}
+    </th>
+  )
+
+  // Filter dropdown rendered inside a <th>. The label is the column name (e.g. "COUNTRY"),
+  // the dropdown value shows the chosen filter and lights up in the brand color when active.
+  const FilterTh = ({
+    label,
+    value,
+    onChange,
+    options,
+    width = 150,
+  }: {
+    label: string
+    value: string
+    onChange: (v: string) => void
+    options: { value: string; label: string }[]
+    /** fixed width in px so changing the selected option doesn't resize the column */
+    width?: number
+  }) => {
+    const active = value !== 'all'
+    return (
+      <th style={{ ...thStyle, padding: '4px 8px', width }}>
+        <div
+          style={{
+            position: 'relative',
+            display: 'inline-flex',
+            alignItems: 'center',
+            width: '100%',
+          }}
+        >
+          <select
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            title={`Filter by ${label}`}
+            aria-label={`Filter by ${label}`}
+            style={{
+              appearance: 'none',
+              WebkitAppearance: 'none',
+              MozAppearance: 'none',
+              width: '100%',
+              padding: '5px 22px 5px 10px',
+              background: active ? `${theme.brand}1a` : theme.btnBg,
+              color: active ? theme.brand : theme.textTertiary,
+              border: `1px solid ${active ? theme.brand + '88' : theme.btnBorder}`,
+              borderRadius: 6,
+              fontSize: 11,
+              fontWeight: 700,
+              textTransform: 'uppercase',
+              letterSpacing: '0.4px',
+              cursor: 'pointer',
+              outline: 'none',
+              fontFamily: 'inherit',
+              textOverflow: 'ellipsis',
+              overflow: 'hidden',
+              whiteSpace: 'nowrap',
+            }}
+          >
+            {options.map((o) => (
+              <option key={o.value} value={o.value} style={{ textTransform: 'none' }}>
+                {label}: {o.label}
+              </option>
+            ))}
+          </select>
+          <span
+            style={{
+              position: 'absolute',
+              right: 7,
+              top: '50%',
+              transform: 'translateY(-50%)',
+              pointerEvents: 'none',
+              color: active ? theme.brand : theme.textTertiary,
+              fontSize: 9,
+              lineHeight: 1,
+            }}
+          >
+            ▼
+          </span>
+        </div>
+      </th>
+    )
   }
 
   const tdStyle: React.CSSProperties = {
@@ -358,9 +562,46 @@ function Blocking() {
 
       {/* Attacker list with block/unblock buttons */}
       <div data-onboarding="block-detected-attackers" style={{ ...cardStyle, marginBottom: 24 }}>
-        <h3 style={{ color: theme.heading, fontSize: 13, fontWeight: 700, marginBottom: 14 }}>
-          Detected Attackers
-        </h3>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          gap: 12, marginBottom: 14, flexWrap: 'wrap',
+        }}>
+          <h3 style={{ color: theme.heading, fontSize: 13, fontWeight: 700, margin: 0 }}>
+            Detected Attackers
+          </h3>
+          {(() => {
+            const hasFilters = aAction !== 'all' || aStatus !== 'all' || aCountry !== 'all'
+            return (
+              <button
+                onClick={() => { setAAction('all'); setAStatus('all'); setACountry('all') }}
+                disabled={!hasFilters}
+                aria-hidden={!hasFilters}
+                tabIndex={hasFilters ? 0 : -1}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '6px 12px', borderRadius: 6,
+                  border: `1px solid ${theme.blockBtnBorder}`,
+                  background: theme.blockBtn,
+                  color: theme.blockBtnText,
+                  fontSize: 11, fontWeight: 700,
+                  textTransform: 'uppercase', letterSpacing: '0.4px',
+                  cursor: hasFilters ? 'pointer' : 'default',
+                  fontFamily: 'inherit',
+                  opacity: hasFilters ? 1 : 0,
+                  transform: hasFilters ? 'scale(1)' : 'scale(0.8)',
+                  transition: 'opacity 0.18s ease-out, transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                  pointerEvents: hasFilters ? 'auto' : 'none',
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+                Clear filters
+              </button>
+            )
+          })()}
+        </div>
 
         {attackers.length === 0 ? (
           <div style={{ color: theme.textSecondary, textAlign: 'center', padding: 30 }}>
@@ -372,16 +613,69 @@ function Blocking() {
               <thead style={{ position: 'sticky', top: 0, zIndex: 1 }}>
                 <tr>
                   <th style={thStyle}>IP Address</th>
-                  <th style={thStyle}>Country</th>
-                  <th style={thStyle}>First Detected</th>
-                  <th style={thStyle}>Last Detected</th>
-                  {autoBlockEnabled && <th style={thStyle}>Chances Left</th>}
-                  <th style={thStyle}>Status</th>
-                  <th style={thStyle}>Action</th>
+                  <FilterTh
+                    label="Country"
+                    value={aCountry}
+                    onChange={setACountry}
+                    options={[
+                      { value: 'all', label: 'All' },
+                      ...countryOptions.map((c) => ({ value: c, label: c })),
+                    ]}
+                  />
+                  <SortableTh
+                    label="First Detected"
+                    active={aSort.key === 'first_detected'}
+                    dir={aSort.key === 'first_detected' ? aSort.dir : 'desc'}
+                    onClick={() => toggleASort('first_detected')}
+                  />
+                  <SortableTh
+                    label="Last Detected"
+                    active={aSort.key === 'last_detected'}
+                    dir={aSort.key === 'last_detected' ? aSort.dir : 'desc'}
+                    onClick={() => toggleASort('last_detected')}
+                  />
+                  {autoBlockEnabled && (
+                    <SortableTh
+                      label="Chances Left"
+                      active={aSort.key === 'chances_left'}
+                      dir={aSort.key === 'chances_left' ? aSort.dir : 'desc'}
+                      onClick={() => toggleASort('chances_left')}
+                    />
+                  )}
+                  <FilterTh
+                    label="Status"
+                    value={aStatus}
+                    onChange={(v) => setAStatus(v as typeof aStatus)}
+                    options={[
+                      { value: 'all', label: 'All' },
+                      { value: 'blocked', label: 'Blocked' },
+                      { value: 'not_blocked', label: 'Not blocked' },
+                    ]}
+                  />
+                  <FilterTh
+                    label="Action"
+                    value={aAction}
+                    onChange={(v) => setAAction(v as typeof aAction)}
+                    options={[
+                      { value: 'all', label: 'All' },
+                      { value: 'block', label: 'Block' },
+                      { value: 'unblock', label: 'Unblock' },
+                    ]}
+                  />
                 </tr>
               </thead>
               <tbody>
-                {attackers.map((a, i) => {
+                {filteredAttackers.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={autoBlockEnabled ? 7 : 6}
+                      style={{ ...tdStyle, textAlign: 'center', color: theme.textSecondary, padding: 30 }}
+                    >
+                      No attackers match the current filters.
+                    </td>
+                  </tr>
+                )}
+                {filteredAttackers.map((a, i) => {
                   const isBlocked = a.is_blocked === 'Blocked'
                   return (
                     <tr
@@ -438,9 +732,46 @@ function Blocking() {
 
       {/* Blocklist history */}
       <div data-onboarding="block-history" style={cardStyle}>
-        <h3 style={{ color: theme.heading, fontSize: 13, fontWeight: 700, marginBottom: 14 }}>
-          Block History
-        </h3>
+        <div style={{
+          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+          gap: 12, marginBottom: 14, flexWrap: 'wrap',
+        }}>
+          <h3 style={{ color: theme.heading, fontSize: 13, fontWeight: 700, margin: 0 }}>
+            Block History
+          </h3>
+          {(() => {
+            const hasFilters = hBlockedBy !== 'all' || hStatus !== 'all'
+            return (
+              <button
+                onClick={() => { setHBlockedBy('all'); setHStatus('all') }}
+                disabled={!hasFilters}
+                aria-hidden={!hasFilters}
+                tabIndex={hasFilters ? 0 : -1}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6,
+                  padding: '6px 12px', borderRadius: 6,
+                  border: `1px solid ${theme.blockBtnBorder}`,
+                  background: theme.blockBtn,
+                  color: theme.blockBtnText,
+                  fontSize: 11, fontWeight: 700,
+                  textTransform: 'uppercase', letterSpacing: '0.4px',
+                  cursor: hasFilters ? 'pointer' : 'default',
+                  fontFamily: 'inherit',
+                  opacity: hasFilters ? 1 : 0,
+                  transform: hasFilters ? 'scale(1)' : 'scale(0.8)',
+                  transition: 'opacity 0.18s ease-out, transform 0.24s cubic-bezier(0.34, 1.56, 0.64, 1)',
+                  pointerEvents: hasFilters ? 'auto' : 'none',
+                }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+                Clear filters
+              </button>
+            )
+          })()}
+        </div>
 
         {blocklist.length === 0 ? (
           <div style={{ color: theme.textSecondary, textAlign: 'center', padding: 30 }}>
@@ -453,14 +784,51 @@ function Blocking() {
                 <tr>
                   <th style={thStyle}>ID</th>
                   <th style={thStyle}>IP Address</th>
-                  <th style={thStyle}>Block Date</th>
-                  <th style={thStyle}>Blocked By</th>
-                  <th style={thStyle}>Expiration</th>
-                  <th style={thStyle}>Status</th>
+                  <SortableTh
+                    label="Block Date"
+                    active={hSort.key === 'block_date'}
+                    dir={hSort.key === 'block_date' ? hSort.dir : 'desc'}
+                    onClick={() => toggleHSort('block_date')}
+                  />
+                  <FilterTh
+                    label="Blocked By"
+                    value={hBlockedBy}
+                    onChange={setHBlockedBy}
+                    options={[
+                      { value: 'all', label: 'All' },
+                      ...blockedByOptions.map((b) => ({ value: b, label: b })),
+                    ]}
+                  />
+                  <SortableTh
+                    label="Expiration"
+                    active={hSort.key === 'expiration_date'}
+                    dir={hSort.key === 'expiration_date' ? hSort.dir : 'desc'}
+                    onClick={() => toggleHSort('expiration_date')}
+                  />
+                  <FilterTh
+                    label="Status"
+                    value={hStatus}
+                    onChange={(v) => setHStatus(v as typeof hStatus)}
+                    options={[
+                      { value: 'all', label: 'All' },
+                      { value: 'active', label: 'Active' },
+                      { value: 'inactive', label: 'Inactive' },
+                    ]}
+                  />
                 </tr>
               </thead>
               <tbody>
-                {blocklist.map((b, i) => (
+                {filteredHistory.length === 0 && (
+                  <tr>
+                    <td
+                      colSpan={6}
+                      style={{ ...tdStyle, textAlign: 'center', color: theme.textSecondary, padding: 30 }}
+                    >
+                      No blocks match the current filters.
+                    </td>
+                  </tr>
+                )}
+                {filteredHistory.map((b, i) => (
                   <tr
                     key={b.block_id}
                     style={{

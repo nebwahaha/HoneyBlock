@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import type { Stats, Attacker } from '../types'
 import { useTheme } from '../theme'
-import StatCard from '../components/StatCard'
+import TotalSessionsCard from '../components/TotalSessionsCard'
 import TopAttackersChart from '../components/TopAttackersChart'
 import AttackerActivityModal from '../components/AttackerActivityModal'
 import AttackMap from '../components/AttackMap'
@@ -568,14 +568,13 @@ function Dashboard() {
       {/* Stat cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 12 }}>
         <div data-onboarding="stat-total-sessions" style={{ display: 'flex' }}>
-          <StatCard
+          <TotalSessionsCard
             icon={
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 3v18h18" /><path d="M18 17V9" /><path d="M13 17V5" /><path d="M8 17v-3" /></svg>
             }
             label="Total Sessions"
             value={stats?.total_attempts ?? 0}
             color={theme.error}
-            delay={0}
           />
         </div>
         <div data-onboarding="stat-unique-ips" style={{ display: 'flex' }}>

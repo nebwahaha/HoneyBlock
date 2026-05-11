@@ -261,7 +261,6 @@ cat > /etc/systemd/system/honeyblock-watcher.service << 'UNIT'
 [Unit]
 Description=HoneyBlock Cowrie Log Watcher
 After=network.target cowrie.service
-Requires=cowrie.service
 
 [Service]
 Type=simple

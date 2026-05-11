@@ -6,31 +6,23 @@ function Configurations() {
   const { theme, themeName, setThemeName, allThemes, customTheme } = useTheme()
   const [customizeOpen, setCustomizeOpen] = useState(false)
   const [cowrieRunning, setCowrieRunning] = useState<boolean | null>(null)
-  const [watcherRunning, setWatcherRunning] = useState<boolean | null>(null)
   const [autoStart, setAutoStart] = useState<boolean | null>(null)
   const [autoBlock, setAutoBlock] = useState<boolean | null>(null)
   const [toggling, setToggling] = useState(false)
-  const [togglingWatcher, setTogglingWatcher] = useState(false)
-  const [restartingWatcher, setRestartingWatcher] = useState(false)
   const [togglingAuto, setTogglingAuto] = useState(false)
   const [togglingAutoBlock, setTogglingAutoBlock] = useState(false)
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null)
 
   const fetchStatus = async () => {
     try {
-      const [cowrieRes, watcherRes, autoRes, autoBlockRes] = await Promise.all([
+      const [cowrieRes, autoRes, autoBlockRes] = await Promise.all([
         fetch('/api/cowrie/status'),
-        fetch('/api/watcher/status'),
         fetch('/api/autostart/status'),
         fetch('/api/autoblock/status'),
       ])
       if (cowrieRes.ok) {
         const data = await cowrieRes.json()
         setCowrieRunning(data.running)
-      }
-      if (watcherRes.ok) {
-        const data = await watcherRes.json()
-        setWatcherRunning(data.running)
       }
       if (autoRes.ok) {
         const data = await autoRes.json()
@@ -66,42 +58,6 @@ function Configurations() {
       setMessage({ text: 'Failed to toggle Cowrie', error: true })
     } finally {
       setToggling(false)
-    }
-  }
-
-  const toggleWatcher = async () => {
-    setTogglingWatcher(true)
-    setMessage(null)
-    try {
-      const res = await fetch('/api/watcher/toggle', { method: 'POST' })
-      const data = await res.json()
-      setWatcherRunning(data.running)
-      setMessage({
-        text: data.message ?? (data.running ? 'Log watcher started' : 'Log watcher stopped'),
-        error: !res.ok,
-      })
-    } catch {
-      setMessage({ text: 'Failed to toggle log watcher', error: true })
-    } finally {
-      setTogglingWatcher(false)
-    }
-  }
-
-  const restartWatcher = async () => {
-    setRestartingWatcher(true)
-    setMessage(null)
-    try {
-      const res = await fetch('/api/watcher/restart', { method: 'POST' })
-      const data = await res.json()
-      setWatcherRunning(data.running)
-      setMessage({
-        text: data.message ?? 'Log watcher restarted',
-        error: !res.ok,
-      })
-    } catch {
-      setMessage({ text: 'Failed to restart log watcher', error: true })
-    } finally {
-      setRestartingWatcher(false)
     }
   }
 
@@ -274,82 +230,6 @@ function Configurations() {
           }}
         >
           {toggling ? '…' : cowrieRunning ? 'Stop' : 'Start'}
-        </button>
-      </div>
-
-      {/* Log watcher */}
-      <div data-onboarding="cfg-log-watcher" style={rowCard}>
-        <div style={iconBox(!!watcherRunning)}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-            <circle cx="12" cy="12" r="3" />
-          </svg>
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: theme.heading }}>Log Watcher</div>
-          <div style={{ fontSize: 11, color: theme.textSecondary, marginTop: 1 }}>
-            Tails Cowrie logs into the database ·{' '}
-            <span style={{ color: watcherRunning ? theme.success : theme.error, fontWeight: 600 }}>
-              {watcherRunning === null ? 'Checking…' : watcherRunning ? 'Running' : 'Stopped'}
-            </span>
-          </div>
-        </div>
-        <button
-          onClick={restartWatcher}
-          disabled={restartingWatcher || togglingWatcher || watcherRunning === null}
-          title="Restart the log watcher"
-          aria-label="Restart log watcher"
-          style={{
-            width: 36,
-            height: 32,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            border: `1px solid ${theme.btnBorder}`,
-            borderRadius: 7,
-            background: theme.btnBg,
-            color: restartingWatcher ? theme.brand : theme.btnText,
-            cursor: restartingWatcher ? 'wait' : 'pointer',
-            fontFamily: 'inherit',
-            transition: 'all 0.15s',
-          }}
-        >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            style={{
-              animation: restartingWatcher ? 'spin 0.9s linear infinite' : undefined,
-              transformOrigin: 'center',
-            }}
-          >
-            <polyline points="23 4 23 10 17 10" />
-            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
-          </svg>
-        </button>
-        <button
-          onClick={toggleWatcher}
-          disabled={togglingWatcher || restartingWatcher || watcherRunning === null}
-          style={{
-            padding: '7px 16px',
-            border: `1px solid ${watcherRunning ? theme.blockBtnBorder : theme.unblockBtnBorder}`,
-            borderRadius: 7,
-            background: watcherRunning ? theme.blockBtn : theme.unblockBtn,
-            color: watcherRunning ? theme.blockBtnText : theme.unblockBtnText,
-            fontSize: 12,
-            fontWeight: 600,
-            cursor: togglingWatcher ? 'wait' : 'pointer',
-            fontFamily: 'inherit',
-            transition: 'all 0.15s',
-            minWidth: 80,
-          }}
-        >
-          {togglingWatcher ? '…' : watcherRunning ? 'Stop' : 'Start'}
         </button>
       </div>
       </div>
