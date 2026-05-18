@@ -8,6 +8,15 @@ function Configurations() {
   const [cowrieRunning, setCowrieRunning] = useState<boolean | null>(null)
   const [autoStart, setAutoStart] = useState<boolean | null>(null)
   const [autoBlock, setAutoBlock] = useState<boolean | null>(null)
+  const [notificationsEnabled, setNotificationsEnabled] = useState<boolean>(
+    () => localStorage.getItem('hb_notifications_enabled') !== 'false'
+  )
+  const [notifyConnections, setNotifyConnections] = useState<boolean>(
+    () => localStorage.getItem('hb_notifications_connections') !== 'false'
+  )
+  const [notifyBlocks, setNotifyBlocks] = useState<boolean>(
+    () => localStorage.getItem('hb_notifications_blocks') !== 'false'
+  )
   const [toggling, setToggling] = useState(false)
   const [togglingAuto, setTogglingAuto] = useState(false)
   const [togglingAutoBlock, setTogglingAutoBlock] = useState(false)
@@ -77,6 +86,39 @@ function Configurations() {
     } finally {
       setTogglingAutoBlock(false)
     }
+  }
+
+  const toggleNotifications = () => {
+    const next = !notificationsEnabled
+    setNotificationsEnabled(next)
+    localStorage.setItem('hb_notifications_enabled', next ? 'true' : 'false')
+    setMessage({
+      text: next ? 'Desktop notifications enabled' : 'Desktop notifications disabled',
+      error: false,
+    })
+    if (next && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission()
+    }
+  }
+
+  const toggleNotifyConnections = () => {
+    const next = !notifyConnections
+    setNotifyConnections(next)
+    localStorage.setItem('hb_notifications_connections', next ? 'true' : 'false')
+    setMessage({
+      text: next ? 'New connection alerts enabled' : 'New connection alerts disabled',
+      error: false,
+    })
+  }
+
+  const toggleNotifyBlocks = () => {
+    const next = !notifyBlocks
+    setNotifyBlocks(next)
+    localStorage.setItem('hb_notifications_blocks', next ? 'true' : 'false')
+    setMessage({
+      text: next ? 'Auto-block alerts enabled' : 'Auto-block alerts disabled',
+      error: false,
+    })
   }
 
   const toggleAutoStart = async () => {
@@ -275,6 +317,70 @@ function Configurations() {
         </div>
         <Toggle on={autoBlock} onClick={toggleAutoBlock} disabled={togglingAutoBlock || autoBlock === null} />
       </div>
+      </div>
+
+      {/* ─── Notifications ─── */}
+      <div style={{ ...sectionLabel, marginTop: 14 }}>Notifications</div>
+
+      <div style={grid2Col}>
+        <div style={rowCard}>
+          <div style={iconBox(notificationsEnabled)}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+              <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+            </svg>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: theme.heading }}>Desktop Notifications</div>
+            <div style={{ fontSize: 11, color: theme.textSecondary, marginTop: 1 }}>
+              Alerts for new connections and blocks ·{' '}
+              <span style={{ color: notificationsEnabled ? theme.success : theme.textTertiary, fontWeight: 600 }}>
+                {notificationsEnabled ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
+          </div>
+          <Toggle on={notificationsEnabled} onClick={toggleNotifications} />
+        </div>
+
+        <div style={{ ...rowCard, opacity: notificationsEnabled ? 1 : 0.55 }}>
+          <div style={iconBox(notificationsEnabled && notifyConnections)}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12.55a11 11 0 0 1 14 0" />
+              <path d="M1.42 9a16 16 0 0 1 21.16 0" />
+              <path d="M8.53 16.11a6 6 0 0 1 6.95 0" />
+              <line x1="12" y1="20" x2="12.01" y2="20" />
+            </svg>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: theme.heading }}>New Connection Alerts</div>
+            <div style={{ fontSize: 11, color: theme.textSecondary, marginTop: 1 }}>
+              Notify when a new IP connects ·{' '}
+              <span style={{ color: notifyConnections ? theme.success : theme.textTertiary, fontWeight: 600 }}>
+                {notifyConnections ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
+          </div>
+          <Toggle on={notifyConnections} onClick={toggleNotifyConnections} disabled={!notificationsEnabled} />
+        </div>
+
+        <div style={{ ...rowCard, opacity: notificationsEnabled ? 1 : 0.55 }}>
+          <div style={iconBox(notificationsEnabled && notifyBlocks)}>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="12" cy="12" r="10" />
+              <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+            </svg>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: theme.heading }}>Auto-Block Alerts</div>
+            <div style={{ fontSize: 11, color: theme.textSecondary, marginTop: 1 }}>
+              Notify when system blocks an IP ·{' '}
+              <span style={{ color: notifyBlocks ? theme.success : theme.textTertiary, fontWeight: 600 }}>
+                {notifyBlocks ? 'Enabled' : 'Disabled'}
+              </span>
+            </div>
+          </div>
+          <Toggle on={notifyBlocks} onClick={toggleNotifyBlocks} disabled={!notificationsEnabled} />
+        </div>
       </div>
 
       {/* ─── Themes ─── */}

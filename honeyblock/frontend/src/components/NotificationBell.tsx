@@ -4,6 +4,17 @@ import { useTheme } from '../theme'
 
 const SEEN_BLOCK_IDS_KEY = 'hb_notif_seen_block_ids'
 const SEEN_ACTIVE_IPS_KEY = 'hb_notif_seen_active_ips'
+const NOTIFICATIONS_ENABLED_KEY = 'hb_notifications_enabled'
+const NOTIFY_CONNECTIONS_KEY = 'hb_notifications_connections'
+const NOTIFY_BLOCKS_KEY = 'hb_notifications_blocks'
+
+type NotificationCategory = 'connection' | 'block'
+
+function isCategoryEnabled(category: NotificationCategory): boolean {
+  if (localStorage.getItem(NOTIFICATIONS_ENABLED_KEY) === 'false') return false
+  const key = category === 'connection' ? NOTIFY_CONNECTIONS_KEY : NOTIFY_BLOCKS_KEY
+  return localStorage.getItem(key) !== 'false'
+}
 
 function loadIdSet<T>(key: string): Set<T> {
   try {
@@ -86,7 +97,8 @@ function SectionHeader({
   )
 }
 
-function sendDesktopNotification(title: string, body: string) {
+function sendDesktopNotification(category: NotificationCategory, title: string, body: string) {
+  if (!isCategoryEnabled(category)) return
   if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return
   try {
     new Notification(title, { body, icon: '/favicon.ico' })
@@ -109,8 +121,9 @@ function NotificationBell() {
   const knownActiveIPs = useRef<Set<string> | null>(null)
   const knownBlockIDs = useRef<Set<number> | null>(null)
 
-  // Request desktop notification permission on mount
+  // Request desktop notification permission on mount (unless user has disabled notifications)
   useEffect(() => {
+    if (localStorage.getItem(NOTIFICATIONS_ENABLED_KEY) === 'false') return
     if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
       Notification.requestPermission()
     }
@@ -133,6 +146,7 @@ function NotificationBell() {
           const newBlocks = blocks.filter(b => b.is_active === 'Block_active' && !knownBlockIDs.current!.has(b.block_id))
           for (const b of newBlocks) {
             sendDesktopNotification(
+              'block',
               'HoneyBlock — IP Blocked',
               `${b.ip} was blocked${b.blocked_by ? ` (${b.blocked_by})` : ''}`
             )
@@ -151,6 +165,7 @@ function NotificationBell() {
           const newIPs = sessions.filter(s => !knownActiveIPs.current!.has(s.ip))
           for (const s of newIPs) {
             sendDesktopNotification(
+              'connection',
               'HoneyBlock — New Connection',
               `${s.ip} connected to the honeypot`
             )
