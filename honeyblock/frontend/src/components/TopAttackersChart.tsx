@@ -20,7 +20,7 @@ function TopAttackersChart({ data, onBarClick }: Props) {
 
   return (
     <ResponsiveContainer width="100%" height="100%">
-      <BarChart data={data} margin={{ top: 10, right: 16, left: -4, bottom: 8 }} barCategoryGap="3%">
+      <BarChart data={data} margin={{ top: 10, right: 16, left: 14, bottom: 14 }} barCategoryGap="3%">
         <CartesianGrid vertical={false} strokeDasharray="3 3" stroke={theme.cardBorder} />
         <XAxis
           dataKey="ip"
@@ -30,14 +30,27 @@ function TopAttackersChart({ data, onBarClick }: Props) {
           interval={0}
           angle={-20}
           textAnchor="end"
-          height={50}
+          height={62}
+          label={{
+            value: 'Attacker IP',
+            position: 'insideBottom',
+            offset: -2,
+            style: { fill: theme.textSecondary, fontSize: 10, textAnchor: 'middle' },
+          }}
         />
         <YAxis
           tick={{ fill: theme.textSecondary, fontSize: 11 }}
           axisLine={false}
           tickLine={false}
           allowDecimals={false}
-          width={32}
+          width={34}
+          label={{
+            value: 'Number of Attacks',
+            angle: -90,
+            position: 'insideLeft',
+            offset: -8,
+            style: { fill: theme.textSecondary, fontSize: 10, textAnchor: 'middle' },
+          }}
         />
         <Tooltip
           cursor={{ fill: theme.barCursor }}

@@ -67,8 +67,8 @@ const STEPS: Step[] = [
     id: 'stat-total-sessions',
     page: '/',
     section: 'dashboard',
-    title: 'Total Sessions',
-    body: 'The total number of attack sessions captured — every login attempt, command run, and connection attackers made on the honeypot rolls up into this number.',
+    title: 'Total Attacks',
+    body: 'The total number of attacks captured — every login attempt, command run, and connection attackers made on the honeypot rolls up into this number.',
   },
   {
     id: 'stat-unique-ips',
